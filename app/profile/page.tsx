@@ -20,7 +20,7 @@ import {
   Star, 
   Heart, 
   Coins,
-  Zap,
+  Activity,
   Loader2,
   Save
 } from 'lucide-react';
@@ -222,7 +222,7 @@ export default function ProfilePage() {
             <Card className="bg-white/5 backdrop-blur-md border-white/5 shadow-2xl overflow-hidden relative group">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
+                  <Activity className="h-5 w-5" />
                   {t('profile.preferences')}
                 </CardTitle>
                 <CardDescription>

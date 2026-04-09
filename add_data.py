@@ -11,7 +11,8 @@ def add_new_content():
             host=os.getenv('MYSQL_HOST', 'localhost'),
             user=os.getenv('MYSQL_USER', 'root'),
             password=os.getenv('MYSQL_PASSWORD', 'root123'),
-            database=os.getenv('MYSQL_DB', 'ethiopian_recommendations')
+            database=os.getenv('MYSQL_DB', 'ethiopian_recommendations'),
+            port=int(os.getenv('MYSQL_PORT', 3306))
         )
         cursor = db.cursor()
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Package, Coins, TrendingUp, Activity, Star, Zap, ShieldCheck, Settings } from "lucide-react";
+import { Users, Package, Coins, TrendingUp, Activity, Star, ShieldCheck, Settings } from "lucide-react";
 import Link from "next/link";
 import { adminApi } from "@/lib/api";
 import { useLanguage } from "@/lib/language-context";
@@ -244,7 +244,7 @@ export default function AdminDashboard() {
           <Card className="hover:bg-amber-500/5 transition-all cursor-pointer border-l-4 border-l-amber-500 group">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <Package className="h-5 w-5 text-amber-500 group-hover:scale-110 transition-transform" />
+                <Globe className="h-5 w-5 text-amber-500 group-hover:scale-110 transition-transform" />
                 <Badge variant="outline" className="border-amber-500/20 text-amber-500 text-[10px]">REAL TIME</Badge>
               </div>
               <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Content</p>
@@ -269,7 +269,7 @@ export default function AdminDashboard() {
           <Card className="hover:bg-emerald-500/5 transition-all cursor-pointer border-l-4 border-l-emerald-500 group">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <Zap className="h-5 w-5 text-emerald-500 group-hover:scale-110 transition-transform" />
+                <Activity className="h-5 w-5 text-emerald-500 group-hover:scale-110 transition-transform" />
               </div>
               <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Import</p>
               <div className="text-2xl font-black mt-1">Unified</div>

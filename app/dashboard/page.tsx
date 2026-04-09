@@ -13,7 +13,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Zap, 
   Film, 
   Music, 
   BookOpen, 
@@ -180,10 +179,6 @@ export default function DashboardPage() {
         <div className="relative mb-12 p-8 md:p-12 rounded-[40px] overflow-hidden border border-white/5 bg-white/5 backdrop-blur-xl group">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] -mr-32 -mt-32 transition-colors group-hover:bg-primary/20" />
           <div className="relative z-10 max-w-2xl">
-            <Badge variant="outline" className="mb-4 border-primary/20 bg-primary/5 text-primary px-4 py-1.5 rounded-full backdrop-blur-md">
-              <Brain className="h-3 w-3 mr-2" />
-              AI Dashboard
-            </Badge>
             <h1 className="text-3xl md:text-5xl font-black tracking-tighter mb-4 italic">
               {t('dashboard.welcome', { name: user?.username })}
             </h1>
@@ -196,17 +191,6 @@ export default function DashboardPage() {
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card className="bg-white/5 backdrop-blur-md border-white/5 shadow-2xl transition-all duration-500 hover:shadow-primary/5 hover:border-primary/20">
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="rounded-full bg-amber-500/10 p-3">
-                <Coins className="h-6 w-6 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('dashboard.stats_credits')}</p>
-                <p className="text-2xl font-bold">{user?.credits || 0}</p>
-              </div>
-            </CardContent>
-          </Card>
           
           <Card className="bg-white/5 backdrop-blur-md border-white/5 shadow-2xl transition-all duration-500 hover:shadow-indigo-500/5 hover:border-indigo-500/20">
             <CardContent className="flex items-center gap-4 p-6">
@@ -318,7 +302,7 @@ export default function DashboardPage() {
           <Card className="bg-white/5 backdrop-blur-md border-white/5 shadow-xl transition-all hover:shadow-amber-500/5 hover:border-amber-500/20">
             <CardContent className="flex items-center gap-4 p-6">
               <div className="rounded-full bg-amber-500/10 p-3">
-                <Zap className="h-6 w-6 text-amber-500" />
+                <Music className="h-6 w-6 text-amber-500" />
               </div>
               <div>
                 <p className="font-semibold text-amber-500">{t('features.eth_title')}</p>
@@ -357,10 +341,7 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-rose-500" />
                   {t('dashboard.recs_title')}
-                </CardTitle>
                 <CardDescription>
                   {t('dashboard.recs_desc')}
                 </CardDescription>
@@ -419,7 +400,7 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <Zap className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <Brain className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                     <h3 className="text-lg font-medium mb-2">{t('dashboard.no_recs')}</h3>
                     <p className="text-muted-foreground mb-4">
                       {t('dashboard.rate_to_get_recs')}

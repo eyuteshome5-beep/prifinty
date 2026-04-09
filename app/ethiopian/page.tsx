@@ -10,12 +10,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Zap, 
-  Film, 
   Music, 
   BookOpen, 
   Loader2,
-  MapPin
+  MapPin,
+  Compass,
+  Globe
 } from 'lucide-react';
 
 export default function EthiopianPage() {
@@ -65,7 +65,7 @@ export default function EthiopianPage() {
         <div className="container relative z-10">
           <div className="mx-auto max-w-4xl text-center animate-in fade-in slide-in-from-bottom-10 duration-1000">
             <Badge className="mb-6 bg-amber-500/20 text-amber-500 border-amber-500/30 px-4 py-1.5 rounded-full backdrop-blur-md">
-              <Zap className="mr-2 h-4 w-4 animate-pulse" />
+              <Compass className="mr-2 h-4 w-4 animate-spin-slow" />
               {t('ethiopian_page.hero_badge')}
             </Badge>
             <h1 className="mb-6 text-6xl md:text-8xl font-black tracking-tighter text-balance leading-[0.85]">
@@ -204,7 +204,7 @@ export default function EthiopianPage() {
                       { icon: Music, text: t('ethiopian_page.feature_music') },
                       { icon: Film, text: t('ethiopian_page.feature_cinema') },
                       { icon: BookOpen, text: t('ethiopian_page.feature_lit') },
-                      { icon: Zap, text: t('ethiopian_page.feature_heritage') }
+                      { icon: Globe, text: t('ethiopian_page.feature_heritage') }
                     ].map((feature, i) => (
                       <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5">
                         <feature.icon className="h-5 w-5 text-amber-500 shrink-0" />
@@ -217,7 +217,7 @@ export default function EthiopianPage() {
                   <div className="absolute inset-0 bg-amber-500/20 blur-[100px] rounded-full animate-pulse" />
                   <div className="h-64 w-64 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 flex items-center justify-center border-8 border-white/10 shadow-2xl relative z-10 overflow-hidden group">
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20" />
-                    <Zap className="h-32 w-32 text-white drop-shadow-2xl transition-transform group-hover:scale-110 duration-500" />
+                    <Globe className="h-32 w-32 text-white drop-shadow-2xl transition-transform group-hover:scale-110 duration-500" />
                   </div>
                 </div>
               </div>
@@ -232,7 +232,7 @@ export default function EthiopianPage() {
 function EmptyState({ t, type }: { t: any, type?: string }) {
   return (
     <div className="text-center py-20">
-      <Zap className="mx-auto h-12 w-12 text-amber-500/50 mb-4" />
+      <Compass className="mx-auto h-12 w-12 text-amber-500/50 mb-4" />
       <h3 className="text-lg font-medium mb-2">
         {t('ethiopian_page.empty_title', { type: type || t('ethiopian_page.hero_title_accent') })}
       </h3>

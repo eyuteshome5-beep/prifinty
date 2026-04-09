@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Star, Heart, Film, Music, BookOpen, Zap, Loader2, Globe } from 'lucide-react';
+import { Star, Heart, Film, Music, BookOpen, Loader2, Globe } from 'lucide-react';
 import { type Item, wishlistAPI } from '@/lib/api';
 import { useLanguage } from '@/lib/language-context';
 import { useAuth } from '@/lib/auth-context';
@@ -113,7 +113,7 @@ export function ItemCard({
         )}
         {item.is_ethiopian && (
           <Badge className="bg-amber-500/80 backdrop-blur-md text-white border-white/20 shadow-md font-bold">
-            <Zap className="mr-1 h-3 w-3 text-amber-200 animate-pulse" />
+            <Globe className="mr-1 h-3 w-3 text-amber-200 animate-pulse" />
             ETHIOPIAN
           </Badge>
         )}

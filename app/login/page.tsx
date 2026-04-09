@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Coins, Zap } from 'lucide-react';
+import { Loader2, Coins, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
@@ -118,7 +118,7 @@ export default function LoginPage() {
                   </>
                 ) : (
                   <span className="flex items-center gap-2">
-                    {t('nav.login')} <Zap className="h-4 w-4" />
+                    {t('nav.login')} <ArrowRight className="h-4 w-4" />
                   </span>
                 )}
               </Button>

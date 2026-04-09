@@ -497,7 +497,7 @@ class RecommendationEngine:
         for item_id in item_ids:
             if item_id in item_dict:
                 item = item_dict[item_id]
-                item['score'] = scores.get(item_id, 0)
+                item['score'] = min(1.0, scores.get(item_id, 0))
                 item['explanation'] = self._generate_quick_explanation(item, algorithm_type)
                 result.append(item)
         

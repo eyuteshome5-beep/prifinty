@@ -19,7 +19,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Search, Plus, MoreHorizontal, Star, Edit, Trash2, Film, Music, BookOpen, Loader2, Zap, Activity
+  Search, Plus, MoreHorizontal, Star, Edit, Trash2, Film, Music, BookOpen, Loader2, Globe, Activity
 } from "lucide-react";
 import { adminApi, itemsAPI, Item, NewItemData } from "@/lib/api";
 
@@ -218,7 +218,7 @@ export default function AdminItemsPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10" onClick={() => setImportSearchOpen(true)}>
-            <Zap className="h-4 w-4 mr-2" />
+            <Globe className="h-4 w-4 mr-2" />
             Import from Web
           </Button>
           <Button onClick={openAddDialog}>
@@ -303,7 +303,7 @@ export default function AdminItemsPage() {
                   <TableCell>
                     {item.is_ethiopian && (
                       <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                        <Zap className="mr-1 h-3 w-3" />Ethiopian
+                        <Globe className="mr-1 h-3 w-3" />Ethiopian
                       </Badge>
                     )}
                   </TableCell>
@@ -446,7 +446,7 @@ export default function AdminItemsPage() {
                 className="rounded border-input w-4 h-4 accent-amber-500"
               />
               <label htmlFor="is_ethiopian" className="text-sm font-medium cursor-pointer flex items-center gap-2">
-                <Zap className="h-4 w-4 text-amber-500" />
+                <Globe className="h-4 w-4 text-amber-500" />
                 This is Ethiopian content
               </label>
             </div>
@@ -467,7 +467,7 @@ export default function AdminItemsPage() {
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-500" />
+              <Globe className="h-5 w-5 text-amber-500" />
               Import from Web
             </DialogTitle>
             <DialogDescription>

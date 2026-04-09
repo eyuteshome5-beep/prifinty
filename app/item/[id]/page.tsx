@@ -26,7 +26,7 @@ import {
   Music, 
   BookOpen, 
   Heart, 
-  Zap, 
+  Activity, 
   Calendar,
   Clock,
   User,
@@ -221,7 +221,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                 {/* Ethiopian Badge */}
                 {item.is_ethiopian && (
                   <Badge className="absolute top-6 left-6 bg-amber-500/90 text-white border-0 backdrop-blur-md px-3 py-1 text-xs">
-                    <Zap className="mr-1.5 h-3.5 w-3.5" />
+                    <Globe className="mr-1.5 h-3.5 w-3.5" />
                     {t('nav.ethiopian')}
                   </Badge>
                 )}
@@ -358,7 +358,7 @@ export default function ItemDetailPage({ params }: PageProps) {
                 )}
                 {details?.ethiopian_genre && (
                   <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-amber-500" />
+                    <Activity className="h-4 w-4 text-amber-500" />
                     <span className="text-sm text-muted-foreground">{t('item_page.eth_genre')}:</span>
                     <span className="text-sm font-medium">{details.ethiopian_genre}</span>
                   </div>
@@ -371,7 +371,7 @@ export default function ItemDetailPage({ params }: PageProps) {
               <Card className="border-amber-200 bg-amber-50/50">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-amber-500" />
+                    <Activity className="h-5 w-5 text-amber-500" />
                     {t('item_page.eth_heritage')}
                   </CardTitle>
                 </CardHeader>

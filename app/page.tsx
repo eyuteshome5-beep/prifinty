@@ -17,7 +17,7 @@ import {
   Brain,
   Globe,
   Coins,
-  Zap
+  Activity
 } from 'lucide-react';
 import { itemsAPI, type Item } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
@@ -140,7 +140,7 @@ export default function HomePage() {
             <Card>
               <CardContent className="flex flex-col items-center p-6 text-center">
                 <div className="mb-4 rounded-full bg-amber-500/10 p-3">
-                  <Zap className="h-6 w-6 text-amber-500" />
+                  <Activity className="h-6 w-6 text-amber-500" />
                 </div>
                 <h3 className="mb-2 font-semibold">{t('features.eth_title')}</h3>
                 <p className="text-sm text-muted-foreground">
@@ -183,7 +183,7 @@ export default function HomePage() {
             <div className="mb-8 flex items-center justify-between">
               <div>
                 <Badge className="mb-2 bg-amber-600 text-white border-0">
-                  <Zap className="mr-1 h-3 w-3" />
+                  <Activity className="mr-1 h-3 w-3" />
                   Featured
                 </Badge>
                 <h2 className="text-2xl font-bold text-amber-600">{t('nav.ethiopian')}</h2>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Coins, Zap, Crown, Gift, ArrowRight, Check, History, TrendingUp } from "lucide-react";
+import { Coins, Activity, Crown, Gift, ArrowRight, Check, History, TrendingUp } from "lucide-react";
 import { creditsAPI, type CreditTransaction } from "@/lib/api";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
@@ -155,7 +155,7 @@ export default function CreditsPage() {
                   )}
                   <CardHeader className="text-center pb-2">
                     <div className="mx-auto mb-2 p-3 bg-muted rounded-full w-fit">
-                      {pkg.id === "starter" && <Zap className="h-6 w-6 text-amber-500" />}
+                      {pkg.id === "starter" && <Coins className="h-6 w-6 text-amber-500" />}
                       {pkg.id === "popular" && <Gift className="h-6 w-6 text-primary" />}
                       {pkg.id === "pro" && <Crown className="h-6 w-6 text-orange-500" />}
                       {pkg.id === "ultimate" && <Crown className="h-6 w-6 text-purple-500" />}

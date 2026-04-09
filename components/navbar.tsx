@@ -23,7 +23,6 @@ import {
   Check,
   Heart,
   Brain,
-  Zap,
   ShieldCheck
 } from "lucide-react";
 import {
@@ -51,7 +50,7 @@ export function Navbar() {
     { icon: Film, label: t('nav.movie'), href: '/browse?type=movie', color: 'text-blue-500' },
     { icon: Music, label: t('nav.music'), href: '/browse?type=music', color: 'text-purple-500' },
     { icon: BookOpen, label: t('nav.book'), href: '/browse?type=book', color: 'text-emerald-500' },
-    { icon: Zap, label: t('nav.ethiopian'), href: '/ethiopian', color: 'text-amber-500' },
+    { icon: Globe, label: t('nav.ethiopian'), href: '/ethiopian', color: 'text-amber-500' },
     { icon: Brain, label: t('nav.recommendations'), href: isAuthenticated ? '/dashboard#recommendations' : '/login', color: 'text-rose-500' },
   ];
 
@@ -264,7 +263,7 @@ export function Navbar() {
               </Link>
               <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
                 <Button className="w-full justify-start">
-                  <Zap className="mr-2 h-4 w-4" />
+                  <Globe className="mr-2 h-4 w-4" />
                   {t('nav.register')}
                 </Button>
               </Link>

@@ -9,7 +9,7 @@ import {
   Globe, 
   Heart, 
   ShieldCheck, 
-  Zap, 
+  Activity, 
   Award,
   Sparkles,
   ArrowRight
@@ -32,7 +32,7 @@ export default function AboutPage() {
         {/* Hero Section */}
         <div className="max-w-4xl mx-auto text-center mb-24 animate-in fade-in slide-in-from-bottom-8 duration-1000">
           <Badge variant="outline" className="mb-4 border-primary/20 bg-primary/5 text-primary px-4 py-1.5 rounded-full backdrop-blur-md">
-            <Sparkles className="h-3 w-3 mr-2" />
+            <Globe className="h-3 w-3 mr-2" />
             Empowering Ethiopian Culture
           </Badge>
           <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-8 leading-[0.9]">
@@ -60,7 +60,7 @@ export default function AboutPage() {
           <Card className="bg-white/5 backdrop-blur-md border-white/5 hover:border-amber-500/20 transition-all duration-500 group">
             <CardContent className="p-8">
               <div className="h-12 w-12 rounded-2xl bg-amber-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <Zap className="h-6 w-6 text-amber-500" />
+                <Globe className="h-6 w-6 text-amber-500" />
               </div>
               <h3 className="text-xl font-bold mb-4">Cultural Preservation</h3>
               <p className="text-muted-foreground leading-relaxed">

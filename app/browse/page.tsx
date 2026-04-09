@@ -26,10 +26,11 @@ import {
   Music, 
   BookOpen, 
   Loader2,
-  Zap,
+  Globe,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  Coins
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -270,7 +271,7 @@ function BrowseContent() {
                 className="border-amber-500/50 data-[state=checked]:bg-amber-500"
               />
               <Label htmlFor="ethiopian" className="flex items-center gap-2 cursor-pointer text-amber-500 font-medium text-sm">
-                <Zap className="h-4 w-4" />
+                <Globe className="h-4 w-4" />
                 {t('browse.ethiopian_only')}
               </Label>
             </div>
@@ -299,7 +300,7 @@ function BrowseContent() {
               )}
               {ethiopianOnly && (
                 <Badge variant="secondary" className="bg-amber-500/10 text-amber-600">
-                  <Zap className="mr-1 h-3 w-3" />
+                  <Globe className="mr-1 h-3 w-3" />
                   {t('nav.ethiopian')}
                 </Badge>
               )}
