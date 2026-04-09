@@ -2,7 +2,7 @@
  * API Service for connecting to Flask Backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://prefinity-api.onrender.com/api';
 
 // Token management
 let authToken: string | null = null;
