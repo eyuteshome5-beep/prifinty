@@ -32,17 +32,17 @@ def create_app(config_name='default'):
     from app.routes.admin import admin_bp
     from app.routes.credits import credits_bp
     from app.routes.settings import settings_bp
+    from app.routes.wishlist import wishlist_bp
     from app.routes.discover import discover_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(users_bp, url_prefix='/api/users')
-    # Backward compatibility for wishlist
-    app.register_blueprint(users_bp, name='wishlist_compat', url_prefix='/api/wishlist')
     app.register_blueprint(items_bp, url_prefix='/api/items')
     app.register_blueprint(recommendations_bp, url_prefix='/api/recommendations')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     app.register_blueprint(credits_bp, url_prefix='/api/credits')
     app.register_blueprint(settings_bp, url_prefix='/api/admin/settings')
+    app.register_blueprint(wishlist_bp, url_prefix='/api/wishlist')
     app.register_blueprint(discover_bp, url_prefix='/api/discover')
     
     # Health check endpoint

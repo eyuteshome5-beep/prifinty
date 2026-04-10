@@ -645,7 +645,7 @@ export interface NewItemData {
 // Wishlist API
 export const wishlistAPI = {
   getWishlist: () =>
-    apiRequest<{ wishlist: any[] }>('/wishlist'),
+    apiRequest<{ wishlist: any[] }>('/users/wishlist'),
   
   addToWishlist: (itemId: number, notes: string = '') =>
     apiRequest<{ message: string }>('/wishlist/add', {

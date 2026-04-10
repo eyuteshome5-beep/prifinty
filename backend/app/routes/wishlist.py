@@ -14,23 +14,18 @@ def get_wishlist():
     user_id = g.current_user['id']
     
     query = """
-        SELECT w.id as wishlist_id, w.added_at, i.*, 
-               CASE 
-                   WHEN i.item_type = 'book' THEN b.author
-                   WHEN i.item_type = 'movie' THEN m.director
-                   WHEN i.item_type = 'music' THEN mu.artist
-               END as creator
+        SELECT w.id as wishlist_id, w.added_at, w.notes,
+               i.id, i.title, i.description, i.genre, i.item_type,
+               i.cover_image, i.avg_rating, i.rating_count,
+               i.is_ethiopian, i.creator
         FROM wishlist w
         JOIN items i ON w.item_id = i.id
-        LEFT JOIN books b ON i.id = b.item_id
-        LEFT JOIN movies m ON i.id = m.item_id
-        LEFT JOIN music mu ON i.id = mu.item_id
         WHERE w.user_id = %s
         ORDER BY w.added_at DESC
     """
     
     items = execute_query(query, (user_id,))
-    return jsonify({'wishlist': items}), 200
+    return jsonify({'wishlist': items or []}), 200
 
 @wishlist_bp.route('/add', methods=['POST'])
 @token_required
@@ -51,17 +46,8 @@ def add_to_wishlist():
             (user_id, item_id, notes),
             fetch_all=False
         )
-        
-        # Log activity
-        execute_query(
-            "INSERT INTO user_activity (user_id, activity_type, item_id) VALUES (%s, 'wishlist', %s)",
-            (user_id, item_id),
-            fetch_all=False
-        )
-        
         return jsonify({'message': 'Added to wishlist'}), 201
     except Exception as e:
-        # Likely already in wishlist due to unique constraint
         return jsonify({'error': 'Item already in wishlist or invalid item_id'}), 400
 
 @wishlist_bp.route('/<int:item_id>', methods=['DELETE'])
