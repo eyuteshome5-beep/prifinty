@@ -58,7 +58,8 @@ class Database:
                 VALUES 
                 ('TMDB_API_KEY', '', 'api_keys', 'The Movie Database API Key (v3)'),
                 ('SPOTIFY_CLIENT_ID', '', 'api_keys', 'Spotify Developer Client ID'),
-                ('SPOTIFY_CLIENT_SECRET', '', 'api_keys', 'Spotify Developer Client Secret')
+                ('SPOTIFY_CLIENT_SECRET', '', 'api_keys', 'Spotify Developer Client Secret'),
+                ('GOOGLE_BOOKS_API_KEY', '', 'api_keys', 'Google Books API Key')
                 """)
                 # Ensure items table has external_id for TMDB sync
                 try:
