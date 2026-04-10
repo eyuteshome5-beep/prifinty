@@ -14,8 +14,8 @@ interface StarRatingProps {
 
 const sizeClasses = {
   sm: 'h-4 w-4',
-  md: 'h-5 w-5',
-  lg: 'h-6 w-6',
+  md: 'h-6 w-6',
+  lg: 'h-9 w-9 md:h-7 md:w-7',
 };
 
 export function StarRating({ 
@@ -42,8 +42,8 @@ export function StarRating({
             type="button"
             disabled={!interactive}
             className={cn(
-              "transition-transform",
-              interactive && "hover:scale-110 cursor-pointer",
+              "transition-all duration-300 p-1 md:p-0.5",
+              interactive && "hover:scale-125 cursor-pointer active:scale-90",
               !interactive && "cursor-default"
             )}
             onClick={() => interactive && onRatingChange?.(starValue)}
@@ -53,12 +53,12 @@ export function StarRating({
             <Star
               className={cn(
                 sizeClasses[size],
-                "transition-colors",
+                "transition-all duration-300",
                 isFilled 
-                  ? "fill-amber-400 text-amber-400" 
+                  ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]" 
                   : isHalfFilled
                   ? "fill-amber-400/50 text-amber-400"
-                  : "text-muted-foreground/30"
+                  : "text-muted-foreground/20 hover:text-muted-foreground/40"
               )}
             />
           </button>

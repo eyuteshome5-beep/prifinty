@@ -2,7 +2,7 @@
  * API Service for connecting to Flask Backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://prefinity-api.onrender.com/api';
+// API logic now defined inside apiRequest for better validation
 
 // Token management
 let authToken: string | null = null;
@@ -24,13 +24,27 @@ export const getAuthToken = (): string | null => {
   return authToken;
 };
 
-// API request helper
+// API request helper with rigid validation and debugging
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getAuthToken();
+  // 🔗 URL Logic: Ensure we always use a valid absolute URL
+  let baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
   
+  // If the URL is missing, invalid (relative), or the default 'undefined'
+  if (!baseUrl || !baseUrl.startsWith('http')) {
+    baseUrl = 'https://prefinity-api.onrender.com/api';
+  }
+
+  // Ensure endpoint starts with /
+  const sanitizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const fullUrl = `${baseUrl}${sanitizedEndpoint}`;
+
+  // 📝 Debug Log: This will show up in the browser's F12 console
+  console.log(`[API] 🚀 Fetching from: ${fullUrl}`);
+
+  const token = getAuthToken();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -40,15 +54,45 @@ async function apiRequest<T>(
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
   
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(fullUrl, {
+      ...options,
+      headers,
+    });
+  } catch (fetchError) {
+    console.error('[API] ❌ Network Error:', fetchError);
+    throw new Error('Failed to connect to the server. Check your internet or backend status.');
+  }
   
-  const data = await response.json();
+  // 🔍 Fail-Safe: Check for HTML response before JSON parsing
+  const responseText = await response.text();
+  const isHtml = responseText.trim().toLowerCase().startsWith('<!doctype') || 
+                 responseText.trim().toLowerCase().startsWith('<html');
+
+  if (isHtml) {
+    console.error('[API] ⚠️ Error: Server returned HTML instead of JSON. Full Response:', responseText.substring(0, 500));
+    
+    // Help the user identify common causes
+    if (fullUrl.includes('localhost') && !responseText.includes('Flask')) {
+      throw new Error('Backend not found at localhost. Are you sure your Python server is running?');
+    }
+    if (responseText.includes('Render') || response.status >= 500) {
+      throw new Error('Server is waking up or having trouble. Please wait 30 seconds and try again.');
+    }
+    throw new Error(`Connectivity error: Server returned an unexpected page (Status ${response.status}).`);
+  }
+  
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (parseError) {
+    console.error('[API] ❌ JSON Parse Error. Raw text:', responseText);
+    throw new Error('Server returned invalid data. Please refresh the page and try again.');
+  }
   
   if (!response.ok) {
-    throw new Error(data.error || 'API request failed');
+    throw new Error(data.error || `Request failed with status ${response.status}`);
   }
   
   return data;

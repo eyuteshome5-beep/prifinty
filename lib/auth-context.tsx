@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await refreshUser();
       return { 
         success: true, 
+        user: response.user,
         bonus: response.bonus 
       };
     } catch (error) {

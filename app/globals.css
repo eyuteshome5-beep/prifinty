@@ -24,6 +24,9 @@
   --input: oklch(0.88 0.01 80);
   --ring: oklch(0.6 0.12 50);
   --radius: 1rem;
+
+  --primary-glow: oklch(0.92 0.02 80);
+  --accent-glow: oklch(0.95 0.02 80);
 }
 
 .dark {
@@ -54,6 +57,9 @@
   --sidebar-accent-foreground: oklch(0.95 0.01 80);
   --sidebar-border: oklch(0.25 0.01 50);
   --sidebar-ring: oklch(0.7 0.1 50);
+
+  --primary-glow: oklch(0.15 0.02 50);
+  --accent-glow: oklch(0.12 0.015 50);
 }
 
 @theme inline {
@@ -102,8 +108,8 @@
   body {
     @apply bg-background text-foreground min-h-screen relative;
     font-feature-settings: "rlig" 1, "calt" 1;
-    background-image: radial-gradient(circle at 50% 0%, oklch(0.15 0.02 50), transparent 50%),
-                      radial-gradient(circle at 100% 100%, oklch(0.12 0.015 50), transparent 50%);
+    background-image: radial-gradient(circle at 50% 0%, var(--primary-glow), transparent 70%),
+                      radial-gradient(circle at 100% 100%, var(--accent-glow), transparent 70%);
     background-attachment: fixed;
   }
 
@@ -146,5 +152,20 @@
     background-size: 113.14px 113.14px;
     animation: slide-diagonal 20s linear infinite;
     pointer-events: none;
+  }
+
+  /* Responsive Typography Base */
+  @media (max-width: 640px) {
+    html {
+      font-size: 14px;
+    }
+    
+    h1 {
+      @apply text-balance;
+    }
+  }
+
+  .text-balance {
+    text-wrap: balance;
   }
 }

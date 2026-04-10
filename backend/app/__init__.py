@@ -49,5 +49,24 @@ def create_app(config_name='default'):
     @app.route('/api/health')
     def health_check():
         return {'status': 'healthy', 'message': 'API is running'}
+
+    # Global error handlers
+    @app.errorhandler(404)
+    def not_found(error):
+        return {'error': 'Resource not found', 'message': str(error)}, 404
+
+    @app.errorhandler(405)
+    def method_not_allowed(error):
+        return {'error': 'Method not allowed', 'message': str(error)}, 405
+
+    @app.errorhandler(500)
+    def internal_server_error(error):
+        return {'error': 'Internal server error', 'message': 'Please try again later'}, 500
+
+    # Catch-all for API 404s
+    @app.route('/api/', defaults={'path': ''})
+    @app.route('/api/<path:path>')
+    def catch_all_api(path):
+        return {'error': 'API endpoint not found', 'path': f'/api/{path}'}, 404
     
     return app

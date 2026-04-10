@@ -134,13 +134,18 @@ export default function ItemDetailPage({ params }: PageProps) {
 
     setIsSubmittingRating(true);
     try {
-      await usersAPI.rateItem(parseInt(id), userRating, review);
-      toast.success(t('item_page.rating_success'));
-      setUserRating(0);
+      // Optimistic logic would go here if we were using a state for ratings list, 
+      // but for now we'll just clear inputs immediately for a snappy feel
+      const ratingValue = userRating;
+      setUserRating(0); 
       setReview('');
+      
+      await usersAPI.rateItem(parseInt(id), ratingValue, review);
+      toast.success(t('item_page.rating_success'));
       fetchItemData();
     } catch (error) {
       toast.error('Failed to submit rating');
+      // On error, we could restore the values if needed
     } finally {
       setIsSubmittingRating(false);
     }

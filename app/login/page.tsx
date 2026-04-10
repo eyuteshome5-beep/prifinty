@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -22,6 +22,12 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    // Wake up the server if it's sleeping
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://prefinity-api.onrender.com/api'}/health`)
+      .catch(() => {}); // Quietly catch if server is down
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -38,7 +44,12 @@ export default function LoginPage() {
       }
       
       toast.success(t('auth.login_success'));
-      router.push('/dashboard');
+      
+      if (result.user?.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.login_failed'));
     } finally {

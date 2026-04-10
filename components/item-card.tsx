@@ -155,13 +155,13 @@ export function ItemCard({
 
       {isExternal ? CardImage : <Link href={`/item/${item.id}`}>{CardImage}</Link>}
       
-      <CardContent className="p-5">
+      <CardContent className="p-4 md:p-5">
         <div className="min-w-0 flex-1">
           {isExternal ? (
-            <h3 className="truncate font-bold text-lg group-hover:text-primary transition-colors tracking-tight line-clamp-1">{item.title}</h3>
+            <h3 className="truncate font-bold text-base md:text-lg group-hover:text-primary transition-colors tracking-tight line-clamp-1">{item.title}</h3>
           ) : (
             <Link href={`/item/${item.id}`}>
-              <h3 className="truncate font-bold text-lg group-hover:text-primary transition-colors tracking-tight line-clamp-1">{item.title}</h3>
+              <h3 className="truncate font-bold text-base md:text-lg group-hover:text-primary transition-colors tracking-tight line-clamp-1">{item.title}</h3>
             </Link>
           )}
           

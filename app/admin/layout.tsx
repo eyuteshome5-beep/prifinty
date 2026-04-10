@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Users,
@@ -13,6 +15,8 @@ import {
   Settings,
   Shield,
   ArrowLeft,
+  Menu,
+  X
 } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 
@@ -28,6 +32,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, isAuthenticated, isLoading } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading) {
@@ -48,13 +54,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Mobile Header */}
+      <div className="lg:hidden flex items-center justify-between p-4 border-b bg-card">
+        <Link href="/" className="flex items-center gap-2">
+          <img src="/logo.png" alt="Logo" className="h-8 w-8 object-contain" />
+          <span className="font-bold">Prefinity</span>
+        </Link>
+        <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+          {isSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </Button>
+      </div>
+
       <div className="flex">
         {/* Sidebar */}
-        <aside className="w-64 min-h-screen bg-card border-r border-border">
+        <aside className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-300 lg:static lg:block lg:translate-x-0",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}>
           <div className="p-6">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 mb-8 hover:opacity-90 transition-opacity">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 p-1 shadow-sm border border-white/10 overflow-hidden">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 p-1 shadow-sm border border-white/10 overflow-hidden text-primary">
                 <img src="/logo.png" alt="Prefinity" className="h-full w-full object-contain" />
               </div>
               <div>
@@ -70,6 +90,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => setIsSidebarOpen(false)}
                   className="group flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all"
                 >
                   <item.icon className="h-5 w-5 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all" />
@@ -77,6 +98,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </Link>
               ))}
               <Separator className="my-4" />
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all text-sm italic"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Go to Dashboard
+              </Link>
               <Link
                 href="/"
                 className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -88,8 +116,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </aside>
 
+        {/* Overlay for mobile */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden" 
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
         {/* Main Content */}
-        <main className="flex-1 p-8">{children}</main>
+        <main className="flex-1 p-4 md:p-8 min-h-screen overflow-x-hidden">
+          {children}
+        </main>
       </div>
     </div>
   );
