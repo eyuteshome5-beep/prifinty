@@ -25,7 +25,7 @@ class Database:
 
             cls._pool = pooling.MySQLConnectionPool(
                 pool_name="recommendation_pool",
-                pool_size=10,
+                pool_size=5,
                 pool_reset_session=True,
                 host=app.config['MYSQL_HOST'],
                 user=app.config['MYSQL_USER'],
@@ -91,14 +91,20 @@ def close_db(e=None):
 
 
 def execute_query(query, params=None, fetch_one=False, fetch_all=True):
-    """Execute a database query and return results"""
-    with Database.get_cursor() as cursor:
-        cursor.execute(query, params or ())
-        if fetch_one:
-            return cursor.fetchone()
-        if fetch_all:
-            return cursor.fetchall()
-        return cursor.lastrowid
+    """Execute a database query and return results with detailed logging on failure"""
+    try:
+        with Database.get_cursor() as cursor:
+            cursor.execute(query, params or ())
+            if fetch_one:
+                return cursor.fetchone()
+            if fetch_all:
+                return cursor.fetchall()
+            return cursor.lastrowid
+    except Exception as e:
+        print(f"[DB ERROR] Query: {query}")
+        print(f"[DB ERROR] Params: {params}")
+        print(f"[DB ERROR] Exception: {str(e)}")
+        raise e
 
 
 def execute_many(query, params_list):
