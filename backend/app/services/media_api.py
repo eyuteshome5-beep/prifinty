@@ -238,3 +238,50 @@ class MediaAPIService:
             return None
         except Exception:
             return None
+
+    # --- Google Books (Search) ---
+    @staticmethod
+    def _search_google_books(query):
+        api_key = MediaAPIService._get_config('GOOGLE_BOOKS_API_KEY')
+        if not api_key:
+            print("ERROR: GOOGLE_BOOKS_API_KEY not configured")
+            return []
+
+        url = "https://www.googleapis.com/books/v1/volumes"
+        params = {
+            'q': query,
+            'key': api_key,
+            'maxResults': 12
+        }
+
+        try:
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                results = []
+                for item in data.get('items', []):
+                    volume_info = item.get('volumeInfo', {})
+                    authors = volume_info.get('authors', ['Unknown Author'])
+                    images = volume_info.get('imageLinks', {})
+                    # Prefer high-res if available, fall back to max available
+                    cover = images.get('thumbnail', images.get('smallThumbnail'))
+                    
+                    if cover and cover.startswith('http:'):
+                        cover = cover.replace('http:', 'https:')
+
+                    results.append({
+                        'external_id': item.get('id'),
+                        'title': volume_info.get('title', 'Unknown Title'),
+                        'description': volume_info.get('description', ''),
+                        'genre': volume_info.get('categories', ['Book'])[0],
+                        'item_type': 'book',
+                        'cover_image': cover,
+                        'release_year': volume_info.get('publishedDate', '')[:4] if volume_info.get('publishedDate') else None,
+                        'popularity': volume_info.get('averageRating', 0) * 20,
+                        'creator': authors[0]
+                    })
+                return results
+            return []
+        except Exception as e:
+            print(f"Google Books API Error: {e}")
+            return []
