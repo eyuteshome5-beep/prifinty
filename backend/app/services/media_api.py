@@ -46,7 +46,14 @@ class MediaAPIService:
         if item_type == 'movie':
             return MediaAPIService._search_tmdb(query)
         elif item_type == 'music':
-            return MediaAPIService._search_spotify(query)
+            # Try Spotify first, but fall back to iTunes if Spotify has subscription/auth issues
+            try:
+                results = MediaAPIService._search_spotify(query)
+                if results: return results
+            except Exception as e:
+                print(f"DEBUG: Spotify failed, falling back to iTunes: {e}")
+            
+            return MediaAPIService._search_itunes(query)
         elif item_type == 'book':
             return MediaAPIService._search_google_books(query)
         return []
@@ -159,12 +166,52 @@ class MediaAPIService:
         if item_type == 'movie':
             return MediaAPIService._get_trending_movies()
         elif item_type == 'music':
-            # Use a more reliable search term that works across all regions
-            return MediaAPIService._search_spotify("trending 2024")
+            # Use iTunes as a more reliable trending source for 2024 hits
+            return MediaAPIService._search_itunes("2024 hits")
         elif item_type == 'book':
             # Search for bestsellers proxy
             return MediaAPIService._search_google_books("bestsellers")
         return []
+
+    # --- iTunes (Music Fallback) ---
+    @staticmethod
+    def _search_itunes(query):
+        """No-Auth required search for music tracks/albums"""
+        url = "https://itunes.apple.com/search"
+        params = {
+            "term": query,
+            "media": "music",
+            "entity": "song",
+            "limit": 12
+        }
+        
+        try:
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                results = []
+                for track in data.get('results', []):
+                    # Convert small artwork to high res
+                    artwork = track.get('artworkUrl100', '')
+                    if artwork:
+                        artwork = artwork.replace('100x100bb', '600x600bb')
+                        
+                    results.append({
+                        'external_id': f"itunes_{track['trackId']}",
+                        'title': track.get('trackName', 'Unknown'),
+                        'creator': track.get('artistName', 'Unknown'),
+                        'album': track.get('collectionName', 'Unknown'),
+                        'genre': track.get('primaryGenreName', 'Music'),
+                        'item_type': 'music',
+                        'cover_image': artwork,
+                        'release_year': track.get('releaseDate', '')[:4] if track.get('releaseDate') else None,
+                        'popularity': 70 # Default popularity for trending
+                    })
+                return results
+            return []
+        except Exception as e:
+            print(f"iTunes API Error: {e}")
+            return []
 
     # --- TMDB (Trending) ---
     @staticmethod
