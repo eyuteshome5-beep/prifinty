@@ -395,15 +395,16 @@ def import_external():
     
     # 1. Insert into base items table
     item_id = execute_query(
-        """INSERT INTO items (title, description, genre, item_type, cover_image, popularity_score)
-           VALUES (%s, %s, %s, %s, %s, %s)""",
+        """INSERT INTO items (title, description, genre, item_type, cover_image, popularity_score, external_id)
+           VALUES (%s, %s, %s, %s, %s, %s, %s)""",
         (
             data['title'],
             data.get('description', ''),
             data.get('genre', 'Other'),
             item_type,
             data.get('cover_image', ''),
-            data.get('popularity', 0)
+            data.get('popularity', 0),
+            data.get('external_id')
         ),
         fetch_all=False
     )

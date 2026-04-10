@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Navbar } from '@/components/navbar';
 import { ItemCard } from '@/components/item-card';
-import { itemsAPI, usersAPI, type Item, type Pagination } from '@/lib/api';
+import { itemsAPI, usersAPI, discoveryAPI, type Item, type Pagination } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useLanguage } from '@/lib/language-context';
 import { Button } from '@/components/ui/button';
@@ -125,13 +125,55 @@ function BrowseContent() {
 
     setIsLoading(true);
     try {
+      // 1. Fetch Local DB Results
       const data = await itemsAPI.search(searchQuery, type || undefined);
-      setItems(data.results);
+      let combinedResults: any[] = [...data.results];
+
+      // 2. Fetch Live Global Results (TMDB / Spotify)
+      try {
+        const globalData = await discoveryAPI.searchExternalPublic(type || 'movie', searchQuery);
+        if (globalData.results && globalData.results.length > 0) {
+          // Add global results that aren't already locally mapped
+          const localExternalIds = new Set(combinedResults.map(i => i.external_id).filter(Boolean));
+          const newGlobalItems = globalData.results.filter((g: any) => !localExternalIds.has(g.external_id));
+          combinedResults = [...combinedResults, ...newGlobalItems];
+        }
+      } catch (extErr) {
+        console.error("Live Global Search Failed:", extErr);
+      }
+
+      setItems(combinedResults as Item[]);
       setPagination(null);
     } catch (error) {
       toast.error(t('browse.toast_search_failed'));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Auto-sync a TMDB card to DB when they wish to interact
+  const handleItemSyncAndNavigate = async (item: any) => {
+    // If it's already a full local item with an ID, we just need the Link to perform naturally
+    // If it's an external-only item, sync it before proceeding
+    if (!item.id) {
+       const toastId = toast.loading('Synchronizing content...');
+       try {
+          const result = await discoveryAPI.syncExternalItem({
+            external_id: item.external_id,
+            item_type: item.item_type,
+            title: item.title,
+            description: item.description,
+            genre: item.genre,
+            cover_image: item.cover_image,
+            popularity: item.popularity,
+            release_year: item.release_year
+          });
+          toast.success('Successfully synchronized!', { id: toastId });
+          // Force hard navigation to new item page
+          window.location.href = `/item/${result.item_id}`;
+       } catch (err) {
+          toast.error('Sync failed', { id: toastId });
+       }
     }
   };
 
@@ -322,12 +364,14 @@ function BrowseContent() {
           <>
             <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {items.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  onWishlistClick={handleWishlistToggle}
-                  isInWishlist={wishlistIds.has(item.id)}
-                />
+                <div key={item.id || (item as any).external_id} onClick={() => handleItemSyncAndNavigate(item)} className="cursor-pointer transition-transform hover:scale-[1.02]">
+                  <ItemCard
+                    item={item}
+                    isExternal={!item.id}
+                    onWishlistClick={handleWishlistToggle}
+                    isInWishlist={item.id ? wishlistIds.has(item.id) : false}
+                  />
+                </div>
               ))}
             </div>
 

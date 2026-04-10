@@ -37,6 +37,41 @@ class Database:
                 **ssl_args
             )
             print(f"[DB] Connection pool initialized successfully (host: {app.config['MYSQL_HOST']})")
+            
+            # Ensure site_settings table exists so Admin API Keys save properly
+            try:
+                conn = cls._pool.get_connection()
+                cursor = conn.cursor()
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS site_settings (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    config_key VARCHAR(100) NOT NULL UNIQUE,
+                    config_value TEXT,
+                    config_group VARCHAR(50) DEFAULT 'general',
+                    description VARCHAR(255),
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                );
+                """)
+                # Insert default TMDB placeholder if it doesn't exist
+                cursor.execute("""
+                INSERT IGNORE INTO site_settings (config_key, config_value, config_group, description) 
+                VALUES ('TMDB_API_KEY', '', 'api_keys', 'The Movie Database API Key (v3)')
+                """)
+                # Ensure items table has external_id for TMDB sync
+                try:
+                    cursor.execute("ALTER TABLE items ADD COLUMN external_id VARCHAR(255) UNIQUE")
+                    print("[DB] Added external_id column to items table.")
+                except Exception as ex_col:
+                    # Column likely already exists
+                    pass
+                    
+                conn.commit()
+                cursor.close()
+                conn.close()
+                print("[DB] Configured DB schema updates automatically.")
+            except Exception as e:
+                print(f"[DB] WARNING: Could not auto-update schema: {e}")
+                
         except Exception as e:
             print(f"[DB] WARNING: Could not initialize connection pool: {e}")
             print("[DB] App will start, but database operations will fail until connection is available.")

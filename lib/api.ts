@@ -667,6 +667,9 @@ export const discoveryAPI = {
   getTrending: (type: string = 'movie') =>
     apiRequest<{ results: any[] }>(`/discover/trending?type=${type}`),
   
+  searchExternalPublic: (type: string, query: string) =>
+    apiRequest<{ results: any[] }>(`/discover/search?type=${type}&q=${query}`),
+  
   syncExternalItem: (itemData: any) =>
     apiRequest<{ message: string; item_id: number }>('/discover/sync', {
       method: 'POST',

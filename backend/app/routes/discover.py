@@ -16,24 +16,40 @@ def get_trending():
     
     trending = MediaAPIService.get_trending(item_type)
     
-    # Check which ones are already in our DB
-    if trending:
-        external_ids = [item['external_id'] for item in trending]
-        placeholders = ', '.join(['%s'] * len(external_ids))
-        
-        local_items = execute_query(
-            f"SELECT id, external_id FROM items WHERE external_id IN ({placeholders})",
-            tuple(external_ids)
-        )
-        
-        # Map external_id to local_id
-        mapping = {item['external_id']: item['id'] for item in local_items}
-        
-        for item in trending:
-            item['local_id'] = mapping.get(item['external_id'])
-            item['is_synced'] = item['local_id'] is not None
+    return set_synced(trending)
 
-    return jsonify({'results': trending}), 200
+def set_synced(items_list):
+    if not items_list: return jsonify({'results': []}), 200
+    
+    external_ids = [item['external_id'] for item in items_list]
+    placeholders = ', '.join(['%s'] * len(external_ids))
+    
+    local_items = execute_query(
+        f"SELECT id, external_id FROM items WHERE external_id IN ({placeholders})",
+        tuple(external_ids)
+    )
+    
+    mapping = {item['external_id']: item['id'] for item in local_items}
+    
+    for item in items_list:
+        item['local_id'] = mapping.get(item['external_id'])
+        item['is_synced'] = item['local_id'] is not None
+        if item['is_synced']:
+            item['id'] = item['local_id']
+
+    return jsonify({'results': items_list}), 200
+
+@discover_bp.route('/search', methods=['GET'])
+def search_external():
+    """Live search external APIs"""
+    item_type = request.args.get('type', 'movie') # movie, music, book
+    query = request.args.get('q')
+    
+    if not query:
+        return jsonify({'results': []}), 200
+        
+    results = MediaAPIService.search(item_type, query)
+    return set_synced(results)
 
 @discover_bp.route('/sync', methods=['POST'])
 @token_required
