@@ -128,14 +128,21 @@ def sync_external_item():
                 fetch_all=False
             )
         
+        # Clean release_year (prevent empty string crash on INT column)
+        raw_year = data.get('release_year')
+        try:
+            clean_year = int(str(raw_year)[:4]) if raw_year and str(raw_year).strip() else None
+        except:
+            clean_year = None
+
         # Insert or Update type-specific details
         if item_type == 'movie':
             execute_query(
                 """INSERT INTO movies (item_id, director, release_year) 
                    VALUES (%s, %s, %s)
                    ON DUPLICATE KEY UPDATE director=%s, release_year=%s""",
-                (main_item_id, data.get('creator', 'Unknown'), data.get('release_year'),
-                 data.get('creator', 'Unknown'), data.get('release_year')),
+                (main_item_id, data.get('creator', 'Unknown'), clean_year,
+                 data.get('creator', 'Unknown'), clean_year),
                 fetch_all=False
             )
         elif item_type == 'music':
@@ -145,8 +152,8 @@ def sync_external_item():
                 """INSERT INTO music (item_id, artist, album, release_year, spotify_id) 
                    VALUES (%s, %s, %s, %s, %s)
                    ON DUPLICATE KEY UPDATE artist=%s, album=%s, release_year=%s, spotify_id=%s""",
-                (main_item_id, creator, album, data.get('release_year'), external_id,
-                 creator, album, data.get('release_year'), external_id),
+                (main_item_id, creator, album, clean_year, external_id,
+                 creator, album, clean_year, external_id),
                 fetch_all=False
             )
         elif item_type == 'book':
@@ -154,16 +161,19 @@ def sync_external_item():
                 """INSERT INTO books (item_id, author, publication_year) 
                    VALUES (%s, %s, %s)
                    ON DUPLICATE KEY UPDATE author=%s, publication_year=%s""",
-                (main_item_id, data.get('creator', 'Unknown'), data.get('release_year'),
-                 data.get('creator', 'Unknown'), data.get('release_year')),
+                (main_item_id, data.get('creator', 'Unknown'), clean_year,
+                 data.get('creator', 'Unknown'), clean_year),
                 fetch_all=False
             )
             
+        print(f"SUCCESS: Synced item {main_item_id} ({item_type})")
         return jsonify({
             'message': 'Item synced successfully' if not item else 'Item updated successfully',
             'item_id': main_item_id
         }), 201
         
     except Exception as e:
-        print(f"Sync error details: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"SYNC ERROR: {error_trace}")
+        return jsonify({'error': f"Database Sync Failed: {str(e)}"}), 500
