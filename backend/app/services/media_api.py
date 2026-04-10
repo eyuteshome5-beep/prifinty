@@ -96,8 +96,10 @@ class MediaAPIService:
         client_secret = MediaAPIService._get_config('SPOTIFY_CLIENT_SECRET')
         
         if not client_id or not client_secret:
-            print("ERROR: Spotify credentials not configured")
-            return []
+            missing = []
+            if not client_id: missing.append("SPOTIFY_CLIENT_ID")
+            if not client_secret: missing.append("SPOTIFY_CLIENT_SECRET")
+            raise Exception(f"Spotify credentials missing in Settings: {', '.join(missing)}")
 
         # Auth
         auth_string = f"{client_id}:{client_secret}"
@@ -113,10 +115,12 @@ class MediaAPIService:
             auth_response.raise_for_status()
             token = auth_response.json().get('access_token')
         except Exception as e:
-            print(f"Spotify Auth Error: {auth_response.text if 'auth_response' in locals() else e}")
-            raise Exception("Spotify Configuration Error: Client ID or Secret is invalid.")
+            error_msg = auth_response.text if 'auth_response' in locals() else str(e)
+            print(f"Spotify Auth Error: {error_msg}")
+            raise Exception(f"Spotify Authentication Failed: {error_msg}")
 
-        if not token: return []
+        if not token:
+            raise Exception("Spotify failed to provide an access token. Check your keys.")
 
         # Search
         search_url = "https://api.spotify.com/v1/search"
@@ -141,7 +145,9 @@ class MediaAPIService:
                         'popularity': track.get('popularity', 0)
                     })
                 return results
-            return []
+            
+            error_body = response.text
+            raise Exception(f"Spotify search failed (Status {response.status_code}): {error_body}")
         except Exception as e:
             print(f"Spotify API Error: {e}")
             raise Exception(f"Spotify Search Failed: {str(e)}")
