@@ -13,10 +13,11 @@ discover_bp = Blueprint('discover', __name__)
 def get_trending():
     """Get trending items from external APIs"""
     item_type = request.args.get('type', 'movie') # movie, music, book
-    
-    trending = MediaAPIService.get_trending(item_type)
-    
-    return set_synced(trending)
+    try:
+        trending = MediaAPIService.get_trending(item_type)
+        return set_synced(trending)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 def set_synced(items_list):
     if not items_list: return jsonify({'results': []}), 200
@@ -48,8 +49,11 @@ def search_external():
     if not query:
         return jsonify({'results': []}), 200
         
-    results = MediaAPIService.search(item_type, query)
-    return set_synced(results)
+    try:
+        results = MediaAPIService.search(item_type, query)
+        return set_synced(results)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 @discover_bp.route('/sync', methods=['POST'])
 @token_required
