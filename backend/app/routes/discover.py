@@ -137,12 +137,14 @@ def sync_external_item():
                 fetch_all=False
             )
         elif item_type == 'music':
+            creator = data.get('creator') or data.get('artist') or 'Unknown Artist'
+            album = data.get('album') or ''
             execute_query(
                 """INSERT INTO music (item_id, artist, album, release_year, spotify_id) 
                    VALUES (%s, %s, %s, %s, %s)
                    ON DUPLICATE KEY UPDATE artist=%s, album=%s, release_year=%s, spotify_id=%s""",
-                (item_id, data.get('creator', 'Unknown'), data.get('album', ''), data.get('release_year'), external_id,
-                 data.get('creator', 'Unknown'), data.get('album', ''), data.get('release_year'), external_id),
+                (item_id, creator, album, data.get('release_year'), external_id,
+                 creator, album, data.get('release_year'), external_id),
                 fetch_all=False
             )
         elif item_type == 'book':

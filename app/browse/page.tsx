@@ -185,7 +185,9 @@ function BrowseContent() {
             genre: item.genre,
             cover_image: item.cover_image,
             popularity: item.popularity,
-            release_year: item.release_year
+            release_year: item.release_year,
+            creator: item.creator,
+            album: (item as any).album
           });
           toast.success('Successfully synchronized!', { id: toastId });
           // Force hard navigation to new item page
