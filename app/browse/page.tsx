@@ -241,7 +241,9 @@ function BrowseContent() {
       <main className="container py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{t('browse.title')}</h1>
+          <h1 className="text-4xl font-black mb-2 tracking-tight italic">
+          {t('browse.title')} <span className="text-primary text-sm font-normal not-italic opacity-50">(Live Fix V4)</span>
+        </h1>
           <p className="text-muted-foreground">
             {t('browse.subtitle')}
           </p>

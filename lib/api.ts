@@ -29,13 +29,8 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  // 🔗 URL Logic: Ensure we always use a valid absolute URL
-  let baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-  
-  // If the URL is missing, invalid (relative), or the default 'undefined'
-  if (!baseUrl || !baseUrl.startsWith('http')) {
-    baseUrl = 'https://prefinity-api.onrender.com/api';
-  }
+  // 🔗 URL Logic: Force production URL
+  const baseUrl = 'https://prefinity-api.onrender.com/api';
 
   // Ensure endpoint starts with /
   const sanitizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
