@@ -28,10 +28,10 @@ def set_synced(results):
 @discover_bp.route('/trending', methods=['GET'])
 def get_trending():
     item_type = request.args.get('type', 'movie')
-    if item_type != 'movie': return jsonify({'results': []}), 200
+    if item_type not in ['movie', 'book']: return jsonify({'results': []}), 200
     
     try:
-        results = MediaAPIService.get_trending('movie')
+        results = MediaAPIService.get_trending(item_type)
         return jsonify(set_synced(results)), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -40,10 +40,10 @@ def get_trending():
 def search_external():
     item_type = request.args.get('type', 'movie')
     query = request.args.get('q', '')
-    if item_type != 'movie' or not query: return jsonify({'results': []}), 200
+    if item_type not in ['movie', 'book'] or not query: return jsonify({'results': []}), 200
     
     try:
-        results = MediaAPIService.search('movie', query)
+        results = MediaAPIService.search(item_type, query)
         return jsonify(set_synced(results)), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -52,10 +52,11 @@ def search_external():
 @token_required
 def sync_external_item():
     data = request.get_json()
-    if not data or data.get('item_type') != 'movie': 
-        return jsonify({'error': 'Only Movie sync is enabled right now'}), 400
+    if not data or data.get('item_type') not in ['movie', 'book']: 
+        return jsonify({'error': 'Only Movie and Book sync is enabled right now'}), 400
     
     ext_id = data.get('external_id')
+    item_type = data.get('item_type')
     try:
         # Check if exists
         item = execute_query("SELECT id FROM items WHERE external_id = %s", (ext_id,), fetch_one=True)
@@ -77,16 +78,22 @@ def sync_external_item():
             # Insert
             item_id = execute_query(
                 """INSERT INTO items (title, description, genre, item_type, cover_image, popularity_score, external_id)
-                   VALUES (%s, %s, %s, 'movie', %s, %s, %s)""",
-                (data['title'], data.get('description', ''), data.get('genre', 'Movie'), 
-                 data.get('cover_image'), data.get('popularity', 0), ext_id), fetch_all=False
+                   VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                (data['title'], data.get('description', ''), data.get('genre', 'Other'), 
+                 item_type, data.get('cover_image'), data.get('popularity', 0), ext_id), fetch_all=False
             )
 
-        # Movie specifically
-        execute_query(
-            "INSERT INTO movies (item_id, director, release_year) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE release_year=%s",
-            (item_id, data.get('creator', 'Director'), year, year), fetch_all=False
-        )
+        # Type specific
+        if item_type == 'movie':
+            execute_query(
+                "INSERT INTO movies (item_id, director, release_year) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE release_year=%s",
+                (item_id, data.get('creator', 'Director'), year, year), fetch_all=False
+            )
+        elif item_type == 'book':
+            execute_query(
+                "INSERT INTO books (item_id, author, publication_year) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE publication_year=%s",
+                (item_id, data.get('creator', 'Author'), year, year), fetch_all=False
+            )
             
         return jsonify({'message': 'Synced', 'item_id': item_id}), 201
     except Exception as e:

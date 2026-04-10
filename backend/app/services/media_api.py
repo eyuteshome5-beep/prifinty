@@ -25,16 +25,18 @@ class MediaAPIService:
     def search(item_type, query):
         if not query: return []
         
-        # WE ARE ONLY ALLOWING MOVIES FOR NOW
         if item_type == 'movie':
             return MediaAPIService._search_tmdb(query)
+        elif item_type == 'book':
+            return MediaAPIService._search_google_books(query)
         return []
 
     @staticmethod
     def get_trending(item_type):
-        # WE ARE ONLY ALLOWING MOVIES FOR NOW
         if item_type == 'movie':
             return MediaAPIService._search_tmdb("trending")
+        elif item_type == 'book':
+            return MediaAPIService._search_google_books("bestsellers")
         return []
 
     @staticmethod
@@ -69,5 +71,32 @@ class MediaAPIService:
         return []
 
     @staticmethod
-    def get_external_details(item_type, external_id):
-        return None
+    def _search_google_books(query):
+        api_key = MediaAPIService._get_config('GOOGLE_BOOKS_API_KEY')
+        url = "https://www.googleapis.com/books/v1/volumes"
+        params = {"q": query, "maxResults": 15}
+        if api_key: params["key"] = api_key
+        
+        try:
+            resp = requests.get(url, params=params, timeout=10)
+            if resp.status_code == 200:
+                results = []
+                for b in resp.json().get('items', []):
+                    info = b.get('volumeInfo', {})
+                    if not info.get('imageLinks', {}).get('thumbnail'): continue
+                    
+                    results.append({
+                        'external_id': f"gb_{b['id']}",
+                        'title': info.get('title'),
+                        'description': info.get('description', 'No description available.'),
+                        'genre': info.get('categories', ['Book'])[0],
+                        'item_type': 'book',
+                        'cover_image': info.get('imageLinks', {}).get('thumbnail'),
+                        'release_year': info.get('publishedDate', '')[:4],
+                        'creator': info.get('authors', ['Unknown Author'])[0],
+                        'popularity': 60
+                    })
+                return results
+        except Exception as e:
+            print(f"Book Search Error: {e}")
+        return []
