@@ -36,7 +36,7 @@ class MediaAPIService:
         if item_type == 'movie':
             return MediaAPIService._search_tmdb("trending")
         elif item_type == 'book':
-            return MediaAPIService._search_google_books("bestsellers")
+            return MediaAPIService._search_google_books("subject:fiction|nonfiction")
         return []
 
     @staticmethod
@@ -74,7 +74,7 @@ class MediaAPIService:
     def _search_google_books(query):
         api_key = MediaAPIService._get_config('GOOGLE_BOOKS_API_KEY')
         url = "https://www.googleapis.com/books/v1/volumes"
-        params = {"q": query, "maxResults": 15}
+        params = {"q": query, "maxResults": 40, "printType": "books", "orderBy": "relevance"}
         if api_key: params["key"] = api_key
         
         try:
