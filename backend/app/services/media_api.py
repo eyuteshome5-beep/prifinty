@@ -153,8 +153,8 @@ class MediaAPIService:
         if item_type == 'movie':
             return MediaAPIService._get_trending_movies()
         elif item_type == 'music':
-            # Spotify requires intelligent search tags to find tracks instead of playlist names
-            return MediaAPIService._search_spotify("year:2024")
+            # Use a more reliable search term that works across all regions
+            return MediaAPIService._search_spotify("trending 2024")
         elif item_type == 'book':
             # Search for bestsellers proxy
             return MediaAPIService._search_google_books("bestsellers")
