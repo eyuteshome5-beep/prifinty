@@ -31,7 +31,11 @@ class MediaAPIService:
         elif item_type == 'book':
             return MediaAPIService._search_google_books(query)
         elif item_type == 'music':
-            return MediaAPIService._search_lastfm(query)
+            # Prefer Last.fm (requires API key); fallback to iTunes public API
+            results = MediaAPIService._search_lastfm(query)
+            if results:
+                return results
+            return MediaAPIService._search_itunes_api(query)
         return []
 
     @staticmethod
@@ -41,7 +45,10 @@ class MediaAPIService:
         elif item_type == 'book':
             return MediaAPIService._search_google_books("subject:fiction|nonfiction")
         elif item_type == 'music':
-            return MediaAPIService._search_lastfm("2024 hits")
+            results = MediaAPIService._search_lastfm("2024 hits")
+            if results:
+                return results
+            return MediaAPIService._search_itunes_api("2024 hits")
         return []
 
     @staticmethod
@@ -142,5 +149,40 @@ class MediaAPIService:
             print(f"Last.fm Search Error: {e}")
         return []
 
-    # Backwards-compatible alias for older code paths
-    _search_itunes = _search_lastfm
+    @staticmethod
+    def _search_itunes_api(query):
+        # Public iTunes Search API fallback (no API key required)
+        if not query: return []
+
+        url = 'https://itunes.apple.com/search'
+        params = {"term": query, "media": "music", "limit": 12}
+        try:
+            resp = requests.get(url, params=params, timeout=6)
+            if resp.status_code == 200:
+                results = []
+                for t in resp.json().get('results', []):
+                    if not t.get('trackName') or not t.get('artistName'): continue
+                    title = t.get('trackName')
+                    artist = t.get('artistName')
+                    track_id = t.get('trackId')
+                    external_id = f"itunes_{track_id}" if track_id else f"itunes_{urllib.parse.quote_plus(artist+'_'+title)}"
+                    artwork = t.get('artworkUrl100') or ''
+                    # Try to provide a larger image when possible
+                    if artwork:
+                        artwork = artwork.replace('100x100bb', '500x500bb')
+
+                    results.append({
+                        'external_id': external_id,
+                        'title': title,
+                        'creator': artist,
+                        'album': t.get('collectionName', ''),
+                        'genre': t.get('primaryGenreName', 'Music'),
+                        'item_type': 'music',
+                        'cover_image': artwork,
+                        'release_year': t.get('releaseDate', '')[:4] if t.get('releaseDate') else '',
+                        'popularity': 60
+                    })
+                return results
+        except Exception as e:
+            print(f"iTunes Search Error: {e}")
+        return []
