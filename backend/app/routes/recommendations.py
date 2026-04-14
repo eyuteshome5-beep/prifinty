@@ -5,6 +5,8 @@ from flask import Blueprint, request, jsonify, g, current_app
 from app.utils.database import execute_query
 from app.utils.auth import token_required, credits_required
 from app.ml.recommendation_engine import RecommendationEngine
+import concurrent.futures
+import threading
 import json
 
 recommendations_bp = Blueprint('recommendations', __name__)
@@ -20,13 +22,9 @@ def get_recommendations():
     limit = min(int(request.args.get('limit', 20)), 50)
     algorithm = request.args.get('algorithm', 'hybrid')  # collaborative, content, hybrid
     
-    # Deduct credits (skip for admin users)
-    if g.current_user.get('role') != 'admin':
-        deduct_credits(user_id, g.credit_cost, 'recommendation', f'Get {item_type or "all"} recommendations')
-    
     # Initialize recommendation engine
     engine = RecommendationEngine()
-    
+
     # Get user preferences
     preferences = execute_query(
         "SELECT * FROM preferences WHERE user_id = %s",
@@ -36,20 +34,29 @@ def get_recommendations():
     
     ethiopian_boost = preferences.get('ethiopian_content_preference', False) if preferences else False
     
-    # Get recommendations based on algorithm
+    # Helper to run heavy engine calls with a short timeout to avoid blocking the web worker
+    def run_with_timeout(fn, timeout=8):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(fn)
+            try:
+                return future.result(timeout=timeout)
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                raise
+
+    # Get recommendations based on algorithm, but guard with timeout and fallbacks
+    fallback_used = False
     try:
         if algorithm == 'collaborative':
-            recommendations = engine.collaborative_filtering(user_id, item_type, limit)
+            recommendations = run_with_timeout(lambda: engine.collaborative_filtering(user_id, item_type, limit))
         elif algorithm == 'content':
-            recommendations = engine.content_based_filtering(user_id, item_type, limit)
+            recommendations = run_with_timeout(lambda: engine.content_based_filtering(user_id, item_type, limit))
         elif algorithm == 'cross_domain':
-            recommendations = engine.cross_domain_recommendations(user_id, limit)
+            recommendations = run_with_timeout(lambda: engine.cross_domain_recommendations(user_id, limit))
         else:  # hybrid (default)
-            recommendations = engine.hybrid_recommendations(user_id, item_type, limit, ethiopian_boost)
-        fallback_used = False
+            recommendations = run_with_timeout(lambda: engine.hybrid_recommendations(user_id, item_type, limit, ethiopian_boost))
     except Exception as e:
-        # Log and fall back to cold-start/popular items to avoid 502 from heavy ML operations
-        print(f"RECOMMENDATION ENGINE ERROR: {e}")
+        print(f"RECOMMENDATION ENGINE ERROR or TIMEOUT: {e}")
         try:
             recommendations = engine.cold_start_recommendations(item_type, limit)
             fallback_used = True
@@ -57,20 +64,34 @@ def get_recommendations():
             print(f"COLD-START FALLBACK FAILED: {e2}")
             recommendations = []
             fallback_used = True
+
+    # Deduct credits (skip for admin users) AFTER successful computation to avoid charging when engine fails
+    try:
+        if g.current_user.get('role') != 'admin' and (recommendations or fallback_used):
+            deduct_credits(user_id, g.credit_cost, 'recommendation', f'Get {item_type or "all"} recommendations')
+    except Exception as e:
+        print(f"CREDIT DEDUCTION ERROR: {e}")
     
     # Apply Ethiopian content boost if preferred
     if ethiopian_boost:
         recommendations = engine.boost_ethiopian_content(recommendations)
     
-    # Save recommendations to database
-    for rec in recommendations:
-        execute_query(
-            """INSERT INTO recommendations (user_id, item_id, score, algorithm_type, explanation)
-               VALUES (%s, %s, %s, %s, %s)
-               ON DUPLICATE KEY UPDATE score = VALUES(score), explanation = VALUES(explanation)""",
-            (user_id, rec['id'], rec['score'], algorithm, rec.get('explanation', '')),
-            fetch_all=False
-        )
+    # Save recommendations to database (best-effort, don't fail the API if DB write errors)
+    try:
+        for rec in recommendations:
+            try:
+                execute_query(
+                    """INSERT INTO recommendations (user_id, item_id, score, algorithm_type, explanation)
+                       VALUES (%s, %s, %s, %s, %s)
+                       ON DUPLICATE KEY UPDATE score = VALUES(score), explanation = VALUES(explanation)""",
+                    (user_id, rec['id'], rec['score'], algorithm, rec.get('explanation', '')),
+                    fetch_all=False
+                )
+            except Exception as e:
+                print(f"Failed to save recommendation row for user {user_id}, item {rec.get('id')}: {e}")
+                continue
+    except Exception as e:
+        print(f"Failed to save recommendations batch for user {user_id}: {e}")
     
     # Log activity
     execute_query(
