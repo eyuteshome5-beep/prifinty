@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.98 0.01 80); /* Warm Cream (Darkwhite) */
+  --background: #e6f7ff; /* Light blue background */
   --foreground: oklch(0.2 0.01 50); /* Dark Text */
   --card: oklch(0.99 0.005 80);
   --card-foreground: oklch(0.2 0.01 50);
@@ -30,7 +30,7 @@
 }
 
 .dark {
-  --background: oklch(0.15 0.01 50); /* Adjusted Dark for Contrast */
+  --background: #032a4a; /* Dark navy for dark mode */
   --foreground: oklch(0.95 0.01 80);
   --card: oklch(0.18 0.01 50);
   --card-foreground: oklch(0.95 0.01 80);

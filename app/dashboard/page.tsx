@@ -54,19 +54,50 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated]);
 
+  // Listen for app-wide data changes (ratings, wishlist) and refresh dashboard
+  useEffect(() => {
+    const handler = () => {
+      if (isAuthenticated) fetchDashboardData();
+    };
+    window.addEventListener('prefinity:data-changed', handler);
+    return () => window.removeEventListener('prefinity:data-changed', handler);
+  }, [isAuthenticated]);
+
   const fetchDashboardData = async () => {
+    setIsLoading(true);
     try {
-      const [recsData, trendingData, wishlistData, profileData] = await Promise.all([
+      const promises = [
         recommendationsAPI.getRecommendations({ limit: 8, algorithm: 'hybrid' }),
         discoveryAPI.getTrending('movie'),
         wishlistAPI.getWishlist(),
         usersAPI.getProfile(),
-      ]);
-      setRecommendations(recsData.recommendations);
-      setDiscoveryItems(trendingData.results || []);
-      setWishlist(wishlistData.wishlist || []);
-      setUserStats(profileData.stats);
-      
+      ];
+
+      const results = await Promise.allSettled(promises);
+
+      // Recommendations (may fail; we don't want it to block other data)
+      if (results[0].status === 'fulfilled') {
+        setRecommendations(results[0].value.recommendations || []);
+      } else {
+        console.warn('Recommendations failed to load:', results[0]);
+        setRecommendations([]);
+      }
+
+      // Trending
+      if (results[1].status === 'fulfilled') {
+        setDiscoveryItems(results[1].value.results || []);
+      }
+
+      // Wishlist
+      if (results[2].status === 'fulfilled') {
+        setWishlist(results[2].value.wishlist || []);
+      }
+
+      // Profile / Stats
+      if (results[3].status === 'fulfilled') {
+        setUserStats(results[3].value.stats);
+      }
+
       // Refresh user info to get accurate credits (server-side deduction)
       try {
         await refreshUser();

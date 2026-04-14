@@ -50,7 +50,7 @@ const typeIcons = {
 
 export default function ItemDetailPage({ params }: PageProps) {
   const { id } = use(params);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, refreshUser } = useAuth();
   const { t } = useLanguage();
   const [item, setItem] = useState<Item | null>(null);
   const [details, setDetails] = useState<ItemDetails | null>(null);
@@ -122,6 +122,13 @@ export default function ItemDetailPage({ params }: PageProps) {
         setIsInWishlist(true);
         toast.success(t('item_page.wishlist_add_success'));
       }
+      // Update global state (profile/wishlist count) so other pages refresh
+      try {
+        await refreshUser();
+      } catch {}
+      try {
+        window.dispatchEvent(new Event('prefinity:data-changed'));
+      } catch {}
     } catch (error) {
       toast.error('Failed to update wishlist');
     }
@@ -148,7 +155,14 @@ export default function ItemDetailPage({ params }: PageProps) {
       
       await usersAPI.rateItem(parseInt(id), ratingValue, review);
       toast.success(t('item_page.rating_success'));
+      // Refresh local item data and global profile/stats
       fetchItemData();
+      try {
+        await refreshUser();
+      } catch {}
+      try {
+        window.dispatchEvent(new Event('prefinity:data-changed'));
+      } catch {}
     } catch (error) {
       toast.error('Failed to submit rating');
       // On error, we could restore the values if needed
