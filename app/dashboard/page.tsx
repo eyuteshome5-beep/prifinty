@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Navbar } from '@/components/navbar';
 import { ItemCard } from '@/components/item-card';
@@ -54,6 +54,15 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated]);
 
+  // Refresh when the user navigates to the dashboard route
+  const pathname = usePathname();
+  useEffect(() => {
+    if (pathname === '/dashboard' && isAuthenticated) {
+      fetchDashboardData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, isAuthenticated]);
+
   // Listen for app-wide data changes (ratings, wishlist) and refresh dashboard
   useEffect(() => {
     const handler = () => {
@@ -80,7 +89,13 @@ export default function DashboardPage() {
         setRecommendations(results[0].value.recommendations || []);
       } else {
         console.warn('Recommendations failed to load:', results[0]);
-        setRecommendations([]);
+        // Try cold-start fallback (popular/cached)
+        try {
+          const cold = await recommendationsAPI.getColdStart(undefined, 8);
+          setRecommendations(cold.recommendations || []);
+        } catch (e) {
+          setRecommendations([]);
+        }
       }
 
       // Trending
@@ -123,12 +138,12 @@ export default function DashboardPage() {
     setActiveType(type);
     
     try {
-      const data = await recommendationsAPI.getRecommendations({ 
-        type, 
-        limit: 8, 
-        algorithm: 'hybrid' 
+      const data = await recommendationsAPI.getRecommendations({
+        type,
+        limit: 8,
+        algorithm: 'hybrid',
       });
-      setRecommendations(data.recommendations);
+      setRecommendations(data.recommendations || []);
       // Refresh user to sync credits deducted by server
       try {
         await refreshUser();
@@ -139,7 +154,14 @@ export default function DashboardPage() {
         description: user.role === 'admin' ? 'Free for admin' : '-1 credit',
       });
     } catch (error) {
-      toast.error('Failed to refresh recommendations');
+      // Attempt cold-start fallback when personalized recs fail
+      try {
+        const cold = await recommendationsAPI.getColdStart(type, 8);
+        setRecommendations(cold.recommendations || []);
+        toast.success('Showing trending recommendations');
+      } catch (e) {
+        toast.error('Failed to refresh recommendations');
+      }
     } finally {
       setIsRefreshing(false);
     }
