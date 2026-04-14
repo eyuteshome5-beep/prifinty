@@ -40,7 +40,7 @@ export function ItemCard({
   isExternal
 }: ItemCardProps) {
   const { t } = useLanguage();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, refreshUser } = useAuth();
   const [isFavorite, setIsFavorite] = useState(initialInWishlist || isWishlistItem);
   const [isPending, setIsPending] = useState(false);
   
@@ -82,6 +82,13 @@ export function ItemCard({
         toast.success("Added to wishlist");
       }
       if (onWishlistClick) onWishlistClick(item.id);
+      // Refresh global profile and notify app to update counts
+      try {
+        await refreshUser();
+      } catch {}
+      try {
+        window.dispatchEvent(new Event('prefinity:data-changed'));
+      } catch {}
     } catch (error) {
       toast.error("Wishlist update failed");
     } finally {
