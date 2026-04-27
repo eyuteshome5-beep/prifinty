@@ -4,7 +4,21 @@ Recommendations Routes - AI-Powered Recommendation System
 from flask import Blueprint, request, jsonify, g, current_app
 from app.utils.database import execute_query
 from app.utils.auth import token_required, credits_required
-from app.ml.recommendation_engine import RecommendationEngine
+def get_recommendation_engine():
+    """Try to import and construct the RecommendationEngine.
+    Returns None if the ML dependencies are not available so the app can
+    continue to run with a simple DB fallback.
+    """
+    try:
+        from app.ml.recommendation_engine import RecommendationEngine
+        return RecommendationEngine()
+    except Exception as e:
+        # Log the import failure and continue with fallback behavior
+        try:
+            current_app.logger.warning(f"Recommendation engine not available: {e}")
+        except Exception:
+            pass
+        return None
 import concurrent.futures
 import threading
 import json
@@ -22,8 +36,8 @@ def get_recommendations():
     limit = min(int(request.args.get('limit', 20)), 50)
     algorithm = request.args.get('algorithm', 'hybrid')  # collaborative, content, hybrid
     
-    # Initialize recommendation engine
-    engine = RecommendationEngine()
+    # Initialize recommendation engine (may be None if ML deps missing)
+    engine = get_recommendation_engine()
 
     # Get user preferences
     preferences = execute_query(
@@ -46,10 +60,13 @@ def get_recommendations():
 
     # Fast personalized heuristic for quick responses (no heavy ML libraries)
     try:
-        fast_recs = engine.fast_personalized_recommendations(user_id, item_type, limit)
-        if fast_recs:
-            recommendations = fast_recs
-            fallback_used = False
+        if engine:
+            fast_recs = engine.fast_personalized_recommendations(user_id, item_type, limit)
+            if fast_recs:
+                recommendations = fast_recs
+                fallback_used = False
+            else:
+                recommendations = None
         else:
             recommendations = None
     except Exception as e:
@@ -59,19 +76,40 @@ def get_recommendations():
     # Get recommendations based on algorithm, but guard with timeout and fallbacks
     fallback_used = False
     try:
-        if recommendations is None:
-            if algorithm == 'collaborative':
-                recommendations = run_with_timeout(lambda: engine.collaborative_filtering(user_id, item_type, limit))
-        elif algorithm == 'content':
-                recommendations = run_with_timeout(lambda: engine.content_based_filtering(user_id, item_type, limit))
-        elif algorithm == 'cross_domain':
-                recommendations = run_with_timeout(lambda: engine.cross_domain_recommendations(user_id, limit))
-        else:  # hybrid (default)
-                recommendations = run_with_timeout(lambda: engine.hybrid_recommendations(user_id, item_type, limit, ethiopian_boost))
+        if engine is None:
+            # Simple DB-based fallback: return top popular items (optionally filtered by type)
+            q = "SELECT id, title, description, item_type, genre, cover_image, is_ethiopian, popularity_score, avg_rating, rating_count FROM items"
+            params = []
+            if item_type:
+                q += " WHERE item_type = %s"
+                params.append(item_type)
+            q += " ORDER BY popularity_score DESC LIMIT %s"
+            params.append(limit)
+            rows = execute_query(q, tuple(params))
+            recommendations = [{
+                'id': r['id'],
+                'score': r.get('popularity_score', 0),
+                'title': r.get('title'),
+                'description': r.get('description'),
+            } for r in rows]
+            fallback_used = True
+        else:
+            if recommendations is None:
+                if algorithm == 'collaborative':
+                    recommendations = run_with_timeout(lambda: engine.collaborative_filtering(user_id, item_type, limit))
+            elif algorithm == 'content':
+                    recommendations = run_with_timeout(lambda: engine.content_based_filtering(user_id, item_type, limit))
+            elif algorithm == 'cross_domain':
+                    recommendations = run_with_timeout(lambda: engine.cross_domain_recommendations(user_id, limit))
+            else:  # hybrid (default)
+                    recommendations = run_with_timeout(lambda: engine.hybrid_recommendations(user_id, item_type, limit, ethiopian_boost))
     except Exception as e:
         print(f"RECOMMENDATION ENGINE ERROR or TIMEOUT: {e}")
         try:
-            recommendations = engine.cold_start_recommendations(item_type, limit)
+            if engine:
+                recommendations = engine.cold_start_recommendations(item_type, limit)
+            else:
+                recommendations = []
             fallback_used = True
         except Exception as e2:
             print(f"COLD-START FALLBACK FAILED: {e2}")
@@ -85,9 +123,12 @@ def get_recommendations():
     except Exception as e:
         print(f"CREDIT DEDUCTION ERROR: {e}")
     
-    # Apply Ethiopian content boost if preferred
-    if ethiopian_boost:
-        recommendations = engine.boost_ethiopian_content(recommendations)
+    # Apply Ethiopian content boost if preferred (only available if engine present)
+    if ethiopian_boost and engine:
+        try:
+            recommendations = engine.boost_ethiopian_content(recommendations)
+        except Exception:
+            pass
     
     # Save recommendations to database (best-effort, don't fail the API if DB write errors)
     try:
@@ -146,9 +187,15 @@ def explain_recommendation(item_id):
     if not recommendation:
         return jsonify({'error': 'Recommendation not found'}), 404
     
-    # Generate detailed explanation
-    engine = RecommendationEngine()
-    explanation = engine.generate_explanation(user_id, item_id)
+    # Generate detailed explanation (if engine available)
+    engine = get_recommendation_engine()
+    if engine:
+        try:
+            explanation = engine.generate_explanation(user_id, item_id)
+        except Exception:
+            explanation = 'Explanation not available.'
+    else:
+        explanation = 'Explanation not available (ML engine not installed).'
     
     return jsonify({
         'item_id': item_id,
@@ -202,8 +249,28 @@ def get_similar_items(item_id):
     """Get items similar to a specific item"""
     limit = min(int(request.args.get('limit', 10)), 30)
     
-    engine = RecommendationEngine()
-    similar_items = engine.find_similar_items(item_id, limit)
+    engine = get_recommendation_engine()
+    if engine:
+        similar_items = engine.find_similar_items(item_id, limit)
+    else:
+        # Simple fallback: find items with same genre or type
+        base = execute_query("SELECT genre, item_type FROM items WHERE id = %s", (item_id,), fetch_one=True)
+        if base:
+            genre = base.get('genre')
+            itype = base.get('item_type')
+            if genre:
+                similar_rows = execute_query(
+                    "SELECT id, title, cover_image FROM items WHERE genre = %s AND id != %s ORDER BY popularity_score DESC LIMIT %s",
+                    (genre, item_id, limit)
+                )
+            else:
+                similar_rows = execute_query(
+                    "SELECT id, title, cover_image FROM items WHERE item_type = %s AND id != %s ORDER BY popularity_score DESC LIMIT %s",
+                    (itype, item_id, limit)
+                )
+            similar_items = similar_rows
+        else:
+            similar_items = []
     
     return jsonify({
         'item_id': item_id,
@@ -217,8 +284,15 @@ def get_cold_start_recommendations():
     item_type = request.args.get('type')
     limit = min(int(request.args.get('limit', 10)), current_app.config['COLD_START_POPULAR_LIMIT'])
     
-    engine = RecommendationEngine()
-    recommendations = engine.cold_start_recommendations(item_type, limit)
+    engine = get_recommendation_engine()
+    if engine:
+        recommendations = engine.cold_start_recommendations(item_type, limit)
+    else:
+        rows = execute_query(
+            "SELECT id, title, description, cover_image, popularity_score FROM items" + (" WHERE item_type = %s" if item_type else "") + " ORDER BY popularity_score DESC LIMIT %s",
+            (item_type, limit) if item_type else (limit,)
+        )
+        recommendations = [{ 'id': r['id'], 'title': r.get('title'), 'score': r.get('popularity_score', 0) } for r in rows]
     
     return jsonify({
         'recommendations': recommendations,
@@ -234,8 +308,20 @@ def get_ethiopian_recommendations():
     item_type = request.args.get('type')
     limit = min(int(request.args.get('limit', 20)), 50)
     
-    engine = RecommendationEngine()
-    recommendations = engine.ethiopian_content_recommendations(user_id, item_type, limit)
+    engine = get_recommendation_engine()
+    if engine:
+        recommendations = engine.ethiopian_content_recommendations(user_id, item_type, limit)
+    else:
+        # Fallback: query items flagged as ethiopian
+        q = "SELECT id, title, description, cover_image, popularity_score FROM items WHERE is_ethiopian = TRUE"
+        params = []
+        if item_type:
+            q += " AND item_type = %s"
+            params.append(item_type)
+        q += " ORDER BY popularity_score DESC LIMIT %s"
+        params.append(limit)
+        rows = execute_query(q, tuple(params))
+        recommendations = [{ 'id': r['id'], 'title': r.get('title'), 'score': r.get('popularity_score', 0) } for r in rows]
     
     return jsonify({
         'recommendations': recommendations,

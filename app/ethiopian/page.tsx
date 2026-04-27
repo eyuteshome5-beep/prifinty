@@ -35,18 +35,33 @@ export default function EthiopianPage() {
   const fetchContent = async () => {
     try {
       const [allData, moviesData, musicData, booksData, genresData] = await Promise.all([
-        itemsAPI.getEthiopianContent(undefined, 50),
-        itemsAPI.getEthiopianContent('movie', 20),
-        itemsAPI.getEthiopianContent('music', 20),
-        itemsAPI.getEthiopianContent('book', 20),
+        itemsAPI.getEthiopianContent(undefined, 200),
+        itemsAPI.getEthiopianContent('movie', 50),
+        itemsAPI.getEthiopianContent('music', 50),
+        itemsAPI.getEthiopianContent('book', 50),
         itemsAPI.getEthiopianGenres(),
       ]);
       
-      setAllContent(allData.items);
-      setMovies(moviesData.items);
-      setMusic(musicData.items);
-      setBooks(booksData.items);
-      setEthiopianGenres(genresData.ethiopian_genres);
+      let allItems = allData.items || [];
+      // Fallback: if backend ethiopian endpoint returns few items, try fetching items flagged as ethiopian
+      if (allItems.length < 100) {
+        try {
+          const fallback = await itemsAPI.getItems({ ethiopian: true, per_page: 200 });
+          const fallbackItems = fallback.items || [];
+          // Merge unique items by id
+          const map = new Map<number, any>();
+          [...allItems, ...fallbackItems].forEach((it: any) => map.set(it.id, it));
+          allItems = Array.from(map.values());
+        } catch (e) {
+          console.warn('Fallback ethiopian items fetch failed:', e);
+        }
+      }
+
+      setAllContent(allItems);
+      setMovies(moviesData.items || []);
+      setMusic(musicData.items || []);
+      setBooks(booksData.items || []);
+      setEthiopianGenres(genresData.ethiopian_genres || []);
     } catch (error) {
       console.error('Failed to fetch Ethiopian content:', error);
     } finally {

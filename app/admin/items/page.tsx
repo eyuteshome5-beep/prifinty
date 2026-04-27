@@ -21,7 +21,7 @@ import {
 import {
   Search, Plus, MoreHorizontal, Star, Edit, Trash2, Film, Music, BookOpen, Loader2, Globe, Activity
 } from "lucide-react";
-import { adminApi, itemsAPI, Item, NewItemData } from "@/lib/api";
+import { adminApi, discoveryAPI, itemsAPI, Item, NewItemData } from "@/lib/api";
 
 const ITEM_TYPES = ["movie", "music", "book"] as const;
 type ItemType = typeof ITEM_TYPES[number];
@@ -162,8 +162,26 @@ export default function AdminItemsPage() {
   const handleImportAction = async (item: any) => {
     setItemImporting(item.external_id);
     try {
+      // Attempt to enrich missing metadata (description / cover image) before importing
+      let payloadItem = { ...item };
+      if ((!item.description || !item.cover_image) && item.title) {
+        try {
+          const res = await discoveryAPI.searchExternalPublic(importType, item.title);
+          const match = res.results && res.results[0];
+          if (match) {
+            payloadItem = {
+              ...payloadItem,
+              description: payloadItem.description || match.description || match.overview || "",
+              cover_image: payloadItem.cover_image || match.cover_image || match.image || "",
+            };
+          }
+        } catch (e) {
+          console.error("Metadata enrichment failed:", e);
+        }
+      }
+
       // Send a flag to mark this imported item as Ethiopian when requested
-      const payload = { ...item, is_ethiopian: importIsEthiopian };
+      const payload = { ...payloadItem, is_ethiopian: importIsEthiopian };
       await adminApi.importExternalItem(payload as any);
       await fetchItems();
       setImportSearchOpen(false);
@@ -174,6 +192,29 @@ export default function AdminItemsPage() {
       setItemImporting(null);
     }
   };
+
+  // Debounced autosuggest for import search
+  useEffect(() => {
+    const q = importQuery.trim();
+    if (!q || q.length < 2) {
+      setImportResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setImportLoading(true);
+      try {
+        const response = await adminApi.searchExternal(importType, q);
+        setImportResults(response.results || []);
+      } catch (err) {
+        console.error('Import Search Error:', err);
+      } finally {
+        setImportLoading(false);
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [importQuery, importType]);
 
   const handleDelete = async (item: Item) => {
     if (!confirm(`Delete "${item.title}"? This cannot be undone.`)) return;

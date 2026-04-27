@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Star, Heart, Film, Music, BookOpen, Loader2, Globe } from 'lucide-react';
-import { type Item, wishlistAPI } from '@/lib/api';
+import { Star, Heart, Film, Music, BookOpen, Loader2, Globe, Play } from 'lucide-react';
+import { type Item, wishlistAPI, itemsAPI } from '@/lib/api';
 import { useLanguage } from '@/lib/language-context';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
@@ -43,6 +43,8 @@ export function ItemCard({
   const { isAuthenticated, refreshUser } = useAuth();
   const [isFavorite, setIsFavorite] = useState(initialInWishlist || isWishlistItem);
   const [isPending, setIsPending] = useState(false);
+  const [spotifyUrl, setSpotifyUrl] = useState<string | null>(null);
+  const [spotifyLoading, setSpotifyLoading] = useState(false);
   
   const TypeIcon = typeIcons[item.item_type] || Film;
 
@@ -68,6 +70,33 @@ export function ItemCard({
       checkWishlistStatus();
     }
   }, [isAuthenticated, item.id, isExternal]);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchSpotify = async () => {
+      if (!item?.id) return;
+      setSpotifyLoading(true);
+      try {
+        const res = await itemsAPI.getSpotifyUrl(item.id);
+        if (!mounted) return;
+        if (res && (res as any).spotify_id) {
+          const sid = (res as any).spotify_id;
+          let finalUrl = sid;
+          if (!sid.startsWith('http')) finalUrl = `https://open.spotify.com/track/${sid}`;
+          setSpotifyUrl(finalUrl);
+        }
+      } catch (e) {
+        // ignore
+      } finally {
+        if (mounted) setSpotifyLoading(false);
+      }
+    };
+
+    if (item?.item_type === 'music') fetchSpotify();
+    return () => {
+      mounted = false;
+    };
+  }, [item?.id, item?.item_type]);
 
   const checkWishlistStatus = async () => {
     if (!item.id) return;
@@ -195,15 +224,37 @@ export function ItemCard({
             </p>
           )}
 
-          <div className="flex flex-wrap gap-2 mt-3">
-            <Badge variant="outline" className="text-[10px] font-black uppercase border-white/10 opacity-70">
-              {t(`nav.${item.item_type}`)}
-            </Badge>
-            {item.genre && (
-              <Badge variant="secondary" className="text-[10px] font-bold bg-white/5 hover:bg-white/10 transition-colors">
-                {item.genre}
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="text-[10px] font-black uppercase border-white/10 opacity-70">
+                {t(`nav.${item.item_type}`)}
               </Badge>
-            )}
+              {item.genre && (
+                <Badge variant="secondary" className="text-[10px] font-bold bg-white/5 hover:bg-white/10 transition-colors">
+                  {item.genre}
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {spotifyLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : spotifyUrl ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try { window.open(spotifyUrl, '_blank', 'noopener'); } catch {}
+                  }}
+                  aria-label="Play on Spotify"
+                >
+                  <Play className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
           </div>
         </div>
 

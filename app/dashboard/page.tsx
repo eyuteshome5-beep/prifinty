@@ -85,17 +85,30 @@ export default function DashboardPage() {
       const results = await Promise.allSettled(promises);
 
       // Recommendations (may fail; we don't want it to block other data)
+      let baseRecs: RecommendedItem[] = [];
       if (results[0].status === 'fulfilled') {
-        setRecommendations(results[0].value.recommendations || []);
+        baseRecs = results[0].value.recommendations || [];
       } else {
         console.warn('Recommendations failed to load:', results[0]);
         // Try cold-start fallback (popular/cached)
         try {
           const cold = await recommendationsAPI.getColdStart(undefined, 8);
-          setRecommendations(cold.recommendations || []);
+          baseRecs = cold.recommendations || [];
         } catch (e) {
-          setRecommendations([]);
+          baseRecs = [];
         }
+      }
+
+      // Prepend Ethiopian-focused recommendations when available
+      try {
+        const eth = await recommendationsAPI.getEthiopianRecommendations(undefined, 4);
+        const ethRecs = eth.recommendations || [];
+        const ethIds = new Set(ethRecs.map((r) => r.id));
+        const merged = [...ethRecs, ...baseRecs.filter((r) => !ethIds.has(r.id))].slice(0, 8);
+        setRecommendations(merged);
+      } catch (e) {
+        // If Ethiopian endpoint fails, fall back to base recommendations
+        setRecommendations(baseRecs);
       }
 
       // Trending
@@ -143,7 +156,17 @@ export default function DashboardPage() {
         limit: 8,
         algorithm: 'hybrid',
       });
-      setRecommendations(data.recommendations || []);
+
+      // Try to fetch Ethiopian-first recommendations and merge
+      try {
+        const eth = await recommendationsAPI.getEthiopianRecommendations(type, 4);
+        const ethRecs = eth.recommendations || [];
+        const ethIds = new Set(ethRecs.map((r) => r.id));
+        const merged = [...ethRecs, ...(data.recommendations || []).filter((r) => !ethIds.has(r.id))].slice(0, 8);
+        setRecommendations(merged);
+      } catch (e) {
+        setRecommendations(data.recommendations || []);
+      }
       // Refresh user to sync credits deducted by server
       try {
         await refreshUser();
