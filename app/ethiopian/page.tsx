@@ -57,10 +57,13 @@ export default function EthiopianPage() {
         }
       }
 
-      setAllContent(allItems);
-      setMovies(moviesData.items || []);
-      setMusic(musicData.items || []);
-      setBooks(booksData.items || []);
+      // Ensure we only show items actually flagged as Ethiopian
+      const onlyEthiopian = (arr: any[]) => (arr || []).filter((it) => !!it.is_ethiopian);
+
+      setAllContent(onlyEthiopian(allItems));
+      setMovies(onlyEthiopian(moviesData.items || []));
+      setMusic(onlyEthiopian(musicData.items || []));
+      setBooks(onlyEthiopian(booksData.items || []));
       setEthiopianGenres(genresData.ethiopian_genres || []);
     } catch (error) {
       console.error('Failed to fetch Ethiopian content:', error);
