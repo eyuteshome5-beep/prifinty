@@ -353,6 +353,12 @@ export const adminAPI = {
   searchExternal: (itemType: string, query: string) =>
     apiRequest<{ results: any[] }>(`/admin/import/search?type=${itemType}&q=${query}`),
 
+  // Admin-only internal items search (no credits deducted)
+  searchItems: (query: string, itemType?: string, ethiopianFirst?: boolean) =>
+    apiRequest<{ results: any[] }>(
+      `/admin/items/search?q=${encodeURIComponent(query)}${itemType ? `&type=${itemType}` : ''}${ethiopianFirst ? `&ethiopian_first=true` : ''}`
+    ),
+
   importExternalItem: (itemData: any) =>
     apiRequest<{ message: string; item_id: number }>('/admin/import/add', {
       method: 'POST',

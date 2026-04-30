@@ -383,6 +383,82 @@ def search_external():
     return jsonify({'results': results}), 200
 
 
+@admin_bp.route('/items/search', methods=['GET'])
+@admin_required
+def search_items_admin():
+    """Admin-only search for items without credit deduction.
+
+    Supports optional `type` and `ethiopian_first` query params.
+    Uses full-text MATCH search when available and falls back to LIKE.
+    """
+    item_type = request.args.get('type')
+    query_text = (request.args.get('q') or '').strip()
+    ethiopian_first = request.args.get('ethiopian_first', 'false').lower() == 'true'
+
+    if not query_text:
+        return jsonify({'results': [], 'query': query_text, 'count': 0}), 200
+
+    # Try full-text search first (MySQL MATCH). If it fails or returns no rows, fall back to LIKE.
+    try:
+        search_query = """
+            SELECT i.*, 
+                   MATCH(i.title, i.description, i.genre) AGAINST(%s IN NATURAL LANGUAGE MODE) as relevance,
+                   CASE 
+                       WHEN i.item_type = 'book' THEN b.author
+                       WHEN i.item_type = 'movie' THEN m.director
+                       WHEN i.item_type = 'music' THEN mu.artist
+                   END as creator
+            FROM items i
+            LEFT JOIN books b ON i.id = b.item_id AND i.item_type = 'book'
+            LEFT JOIN movies m ON i.id = m.item_id AND i.item_type = 'movie'
+            LEFT JOIN music mu ON i.id = mu.item_id AND i.item_type = 'music'
+            WHERE MATCH(i.title, i.description, i.genre) AGAINST(%s IN NATURAL LANGUAGE MODE)
+        """
+        params = [query_text, query_text]
+        if item_type:
+            search_query += " AND i.item_type = %s"
+            params.append(item_type)
+
+        order_clause = 'relevance DESC'
+        if ethiopian_first:
+            order_clause = 'i.is_ethiopian DESC, relevance DESC'
+
+        search_query += f" ORDER BY {order_clause} LIMIT 50"
+
+        results = execute_query(search_query, tuple(params))
+    except Exception:
+        results = []
+
+    # Fallback to LIKE when no results from full-text or on error
+    if not results:
+        like_query = """
+            SELECT i.*, 
+                   CASE 
+                       WHEN i.item_type = 'book' THEN b.author
+                       WHEN i.item_type = 'movie' THEN m.director
+                       WHEN i.item_type = 'music' THEN mu.artist
+                   END as creator
+            FROM items i
+            LEFT JOIN books b ON i.id = b.item_id AND i.item_type = 'book'
+            LEFT JOIN movies m ON i.id = m.item_id AND i.item_type = 'movie'
+            LEFT JOIN music mu ON i.id = mu.item_id AND i.item_type = 'music'
+            WHERE i.title LIKE %s OR i.description LIKE %s OR i.genre LIKE %s
+        """
+        like_params = [f'%{query_text}%', f'%{query_text}%', f'%{query_text}%']
+        if item_type:
+            like_query += " AND i.item_type = %s"
+            like_params.append(item_type)
+
+        order_clause_like = 'i.popularity_score DESC'
+        if ethiopian_first:
+            order_clause_like = 'i.is_ethiopian DESC, i.popularity_score DESC'
+
+        like_query += f" ORDER BY {order_clause_like} LIMIT 50"
+        results = execute_query(like_query, tuple(like_params))
+
+    return jsonify({'results': results, 'query': query_text, 'count': len(results)}), 200
+
+
 @admin_bp.route('/import/add', methods=['POST'])
 @admin_required
 def import_external():

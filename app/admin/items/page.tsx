@@ -68,6 +68,8 @@ export default function AdminItemsPage() {
   const [itemImporting, setItemImporting] = useState<string | null>(null);
   const [importIsEthiopian, setImportIsEthiopian] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [searchResults, setSearchResults] = useState<Item[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   useEffect(() => { fetchItems(); }, []);
 
@@ -249,6 +251,34 @@ export default function AdminItemsPage() {
     return matchesSearch && matchesType;
   });
 
+  // When admin types a query we use server-side admin search (debounced).
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q || q.length < 2) {
+      setSearchResults(null);
+      setSearchLoading(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const shouldEthiopianFirst = q.toLowerCase().includes('ethiop');
+        const resp = await adminApi.searchItems(q, typeFilter === 'all' ? undefined : typeFilter, shouldEthiopianFirst);
+        setSearchResults(resp.results || []);
+      } catch (err) {
+        console.error('Admin items search error', err);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, typeFilter]);
+
+  const displayItems = searchResults !== null ? searchResults : filteredItems;
+
   const creatorLabel = (type: string) => {
     if (type === "book") return "Author";
     if (type === "movie") return "Director";
@@ -314,9 +344,9 @@ export default function AdminItemsPage() {
 
       {/* Items Table */}
       <Card>
-        <CardHeader>
+          <CardHeader>
           <CardTitle>All Items</CardTitle>
-          <CardDescription>{filteredItems.length} items found</CardDescription>
+          <CardDescription>{displayItems.length} items found</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -331,7 +361,7 @@ export default function AdminItemsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.map((item) => (
+              {displayItems.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>
                     <div>
@@ -382,7 +412,7 @@ export default function AdminItemsPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredItems.length === 0 && (
+              {displayItems.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                     No items found. Click "Add Item" to get started.
