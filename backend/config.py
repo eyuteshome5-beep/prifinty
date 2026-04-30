@@ -35,6 +35,8 @@ class Config:
     # Recommendation Engine Configuration
     RECOMMENDATION_LIMIT = 20
     ETHIOPIAN_BOOST_FACTOR = 1.3  # 30% boost for Ethiopian content
+    # Popularity boost applied to items imported as Ethiopian so they surface first
+    ETHIOPIAN_IMPORT_POPULARITY_BOOST = int(os.environ.get('ETHIOPIAN_IMPORT_POPULARITY_BOOST', 1000))
     COLD_START_POPULAR_LIMIT = 10
     
     # Pagination
