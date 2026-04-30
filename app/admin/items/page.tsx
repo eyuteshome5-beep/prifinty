@@ -561,7 +561,7 @@ export default function AdminItemsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex gap-2 py-4">
+          <div className="flex gap-2 py-4 items-start">
             <Select value={importType} onValueChange={(v: any) => setImportType(v)}>
               <SelectTrigger className="w-40 capitalize">
                 <SelectValue />
@@ -572,39 +572,44 @@ export default function AdminItemsPage() {
                 <SelectItem value="book">Book</SelectItem>
               </SelectContent>
             </Select>
-            <div className="relative flex-1">
-              <Input
-                placeholder={`Search ${importType}s (min 2 chars)`}
-                value={importQuery}
-                onChange={(e) => setImportQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleImportSearch()}
-                className="flex-1 pr-10"
-                ref={importInputRef}
-                aria-label={`Search ${importType}s`}
-              />
-              {importQuery && (
-                <button
-                  onClick={() => setImportQuery("")}
-                  aria-label="Clear search"
-                  className="absolute right-12 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+
+            <div className="flex-1">
+              <div className="relative">
+                <Input
+                  placeholder={`Search ${importType}s (min 2 chars)`}
+                  value={importQuery}
+                  onChange={(e) => setImportQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleImportSearch()}
+                  className="flex-1 pr-10"
+                  ref={importInputRef}
+                  aria-label={`Search ${importType}s`}
+                />
+                {importQuery && (
+                  <button
+                    onClick={() => setImportQuery("")}
+                    aria-label="Clear search"
+                    className="absolute right-12 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-2 flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="import_is_ethiopian"
+                  checked={importIsEthiopian}
+                  onChange={(e) => setImportIsEthiopian(e.target.checked)}
+                  className="rounded border-input w-4 h-4 accent-amber-500"
+                />
+                <label htmlFor="import_is_ethiopian" className="text-sm font-medium cursor-pointer">Mark imported items as Ethiopian</label>
+              </div>
             </div>
-            <Button onClick={handleImportSearch} disabled={importLoading}>
+
+            <Button onClick={handleImportSearch} disabled={importLoading} className="self-start">
               {importLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
-            <div className="flex items-center gap-3 ml-2">
-              <input
-                type="checkbox"
-                id="import_is_ethiopian"
-                checked={importIsEthiopian}
-                onChange={(e) => setImportIsEthiopian(e.target.checked)}
-                className="rounded border-input w-4 h-4 accent-amber-500"
-              />
-              <label htmlFor="import_is_ethiopian" className="text-sm font-medium cursor-pointer">Mark imported items as Ethiopian</label>
-            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto pr-2 space-y-4 min-h-[400px]">
