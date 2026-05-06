@@ -42,6 +42,8 @@ class Config:
     # Pagination
     DEFAULT_PAGE_SIZE = 20
     MAX_PAGE_SIZE = 100
+    # Database pool size (increase if you see 'pool exhausted' errors)
+    DB_POOL_SIZE = int(os.environ.get('DB_POOL_SIZE', 10))
 
 
 class DevelopmentConfig(Config):

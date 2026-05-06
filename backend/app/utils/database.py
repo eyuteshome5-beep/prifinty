@@ -23,9 +23,10 @@ class Database:
                 ssl_args['ssl_disabled'] = False
                 ssl_args['ssl_verify_cert'] = False  # Skip cert verification for simplicity
 
+            pool_size = int(app.config.get('DB_POOL_SIZE', 10))
             cls._pool = pooling.MySQLConnectionPool(
                 pool_name="recommendation_pool",
-                pool_size=5,
+                pool_size=pool_size,
                 pool_reset_session=True,
                 host=app.config['MYSQL_HOST'],
                 user=app.config['MYSQL_USER'],
@@ -96,7 +97,27 @@ class Database:
                 ssl_verify_cert=False,
                 connection_timeout=30,
             )
-        return cls._pool.get_connection()
+
+        # Prefer pooled connection; if pool is temporarily exhausted, fall back
+        try:
+            return cls._pool.get_connection()
+        except Exception as e:
+            # Log and attempt a direct connection as a best-effort fallback
+            print(f"[DB WARNING] Failed to get pooled connection: {e}. Falling back to direct connection.")
+            try:
+                return mysql.connector.connect(
+                    host=current_app.config['MYSQL_HOST'],
+                    user=current_app.config['MYSQL_USER'],
+                    password=current_app.config['MYSQL_PASSWORD'],
+                    database=current_app.config['MYSQL_DB'],
+                    port=current_app.config['MYSQL_PORT'],
+                    ssl_disabled=False,
+                    ssl_verify_cert=False,
+                    connection_timeout=30,
+                )
+            except Exception:
+                # Re-raise original pool error if direct connection also fails
+                raise e
     
     @classmethod
     @contextmanager
