@@ -83,13 +83,21 @@ export default function EthiopianPage() {
         
         <div className="container relative z-10">
           <div className="mx-auto max-w-4xl text-center animate-in fade-in slide-in-from-bottom-10 duration-1000">
-            <Badge className="mb-6 bg-amber-500/20 text-amber-500 border-amber-500/30 px-4 py-1.5 rounded-full backdrop-blur-md">
-              <Compass className="mr-2 h-4 w-4 animate-spin-slow" />
-              {t('ethiopian_page.hero_badge')}
-            </Badge>
+            <div className="mb-6 flex items-center justify-center gap-3">
+              <div className="h-14 w-10 rounded-sm overflow-hidden border border-gray-200 shadow-sm">
+                <div className="flex flex-col h-full">
+                  <span className="block h-1/3 w-full bg-green-600" />
+                  <span className="block h-1/3 w-full bg-yellow-400" />
+                  <span className="block h-1/3 w-full bg-red-600" />
+                </div>
+              </div>
+              <Badge className="px-4 py-1.5 rounded-full backdrop-blur-md border border-emerald-200/10 text-emerald-700">
+                {t('ethiopian_page.hero_badge')}
+              </Badge>
+            </div>
             <h1 className="mb-6 text-6xl md:text-8xl font-black tracking-tighter text-balance leading-[0.85]">
               {t('ethiopian_page.hero_title')}
-              <span className="text-amber-500 block mt-2 drop-shadow-[0_0_15px_rgba(245,158,11,0.3)]"> {t('ethiopian_page.hero_title_accent')}</span>
+              <span className="text-emerald-700 block mt-2 drop-shadow-[0_0_12px_rgba(34,197,94,0.18)]"> {t('ethiopian_page.hero_title_accent')}</span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground/80 text-pretty max-w-2xl mx-auto leading-relaxed">
               {t('ethiopian_page.hero_desc')}

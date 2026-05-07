@@ -630,6 +630,73 @@ def import_external():
     }), 201
 
 
+@admin_bp.route('/fetch-missing-images', methods=['POST'])
+def fetch_missing_images():
+    """Fetch missing cover images for items by searching external providers.
+
+    Authorization: either a valid `X-SEED-TOKEN` with remote seeding enabled,
+    or a valid admin JWT in `Authorization: Bearer <token>`.
+    """
+    # Token-based path (CI / automation)
+    token = request.headers.get('X-SEED-TOKEN') or request.args.get('seed_token')
+    seed_token = current_app.config.get('SEED_TOKEN')
+    enable_remote = current_app.config.get('ENABLE_REMOTE_SEED', False)
+
+    authorized = False
+    if token and seed_token and enable_remote and token == seed_token:
+        authorized = True
+
+    # Fallback to admin JWT
+    if not authorized:
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Authentication required'}), 401
+        if user.get('role') != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+        g.current_user = user
+        authorized = True
+
+    if not authorized:
+        return jsonify({'error': 'Not authorized'}), 403
+
+    # Fetch items missing cover images
+    limit = min(int(request.args.get('limit', 200)), 2000)
+    try:
+        missing = execute_query(
+            "SELECT id, title, item_type FROM items WHERE cover_image IS NULL OR cover_image = '' LIMIT %s",
+            (limit,)
+        )
+    except Exception as e:
+        current_app.logger.error(f"DB error fetching missing items: {e}")
+        return jsonify({'error': 'Database error', 'details': str(e)}), 500
+
+    updated = []
+    for it in missing:
+        try:
+            candidates = MediaAPIService.search(it['item_type'], it['title'])
+            if not candidates:
+                continue
+            best = candidates[0]
+            cover = best.get('cover_image') or best.get('image') or ''
+            ext_id = best.get('external_id')
+            if cover:
+                try:
+                    execute_query(
+                        "UPDATE items SET cover_image = %s, external_id = %s WHERE id = %s",
+                        (cover, ext_id, it['id']),
+                        fetch_all=False
+                    )
+                    updated.append({'id': it['id'], 'title': it['title'], 'cover_image': cover, 'external_id': ext_id})
+                except Exception as e:
+                    current_app.logger.error(f"Failed to update item {it['id']}: {e}")
+                    continue
+        except Exception as e:
+            current_app.logger.error(f"Error searching media for '{it['title']}': {e}")
+            continue
+
+    return jsonify({'updated': updated, 'count': len(updated)}), 200
+
+
 @admin_bp.route('/activity', methods=['GET'])
 @admin_required
 def get_activity():

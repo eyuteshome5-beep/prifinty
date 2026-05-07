@@ -168,8 +168,8 @@ export function ItemCard({
           </Badge>
         )}
         {item.is_ethiopian && (
-          <Badge className="bg-amber-500/80 backdrop-blur-md text-white border-white/20 shadow-md font-bold">
-            <Globe className="mr-1 h-3 w-3 text-amber-200 animate-pulse" />
+          <Badge className="bg-gradient-to-r from-emerald-500 via-yellow-400 to-red-500 text-white border-white/20 shadow-md font-bold">
+            <Globe className="mr-1 h-3 w-3 text-white animate-pulse" />
             ETHIOPIAN
           </Badge>
         )}

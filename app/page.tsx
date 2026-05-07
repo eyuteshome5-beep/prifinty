@@ -19,7 +19,7 @@ import {
   Coins,
   Activity
 } from 'lucide-react';
-import { itemsAPI, type Item } from '@/lib/api';
+import { itemsAPI, discoverAPI, type Item } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useLanguage } from '@/lib/language-context';
 
@@ -30,6 +30,7 @@ export default function HomePage() {
   const [popularMusic, setPopularMusic] = useState<Item[]>([]);
   const [popularBooks, setPopularBooks] = useState<Item[]>([]);
   const [ethiopianContent, setEthiopianContent] = useState<Item[]>([]);
+  const [trendingGlobal, setTrendingGlobal] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -45,6 +46,12 @@ export default function HomePage() {
         setPopularMusic(music.items);
         setPopularBooks(books.items);
         setEthiopianContent(ethiopian.items);
+        try {
+          const trending = await discoverAPI.getTrending('movie', 6);
+          setTrendingGlobal(trending.results || []);
+        } catch (err) {
+          console.error('Failed to fetch global trending:', err);
+        }
       } catch (error) {
         console.error('Failed to fetch content:', error);
       } finally {
@@ -181,15 +188,20 @@ export default function HomePage() {
         <section className="bg-gradient-to-r from-amber-500/5 via-amber-500/10 to-amber-500/5 py-16">
           <div className="container">
             <div className="mb-8 flex items-center justify-between">
-              <div>
-                <Badge className="mb-2 bg-amber-600 text-white border-0">
-                  <Activity className="mr-1 h-3 w-3" />
-                  Featured
-                </Badge>
-                <h2 className="text-2xl font-bold text-amber-600">{t('nav.ethiopian')}</h2>
-                <p className="text-muted-foreground">
-                  {t('hero.subtitle')}
-                </p>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-14 rounded-sm overflow-hidden border border-gray-200 shadow-sm">
+                    <div className="flex h-full">
+                      <span className="block w-1/3 bg-green-600" />
+                      <span className="block w-1/3 bg-yellow-400" />
+                      <span className="block w-1/3 bg-red-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-emerald-700">{t('nav.ethiopian')}</h2>
+                    <p className="text-muted-foreground">{t('hero.subtitle')}</p>
+                  </div>
+                </div>
               </div>
               <Link href="/ethiopian">
                 <Button variant="outline" className="gap-2">
@@ -202,6 +214,43 @@ export default function HomePage() {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {ethiopianContent.map((item) => (
                 <ItemCard key={item.id} item={item} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* GLOBAL DISCOVERY - Trending Live from TMDB & Beyond */}
+      {trendingGlobal.length > 0 && (
+        <section className="py-16 bg-gradient-to-r from-sky-50 via-white to-slate-50">
+          <div className="container">
+            <div className="mb-8 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-slate-200/30 p-2">
+                  <Globe className="h-5 w-5 text-slate-700" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">GLOBAL DISCOVERY</h2>
+                  <p className="text-sm text-muted-foreground">Trending Live from TMDB & Beyond — Recommendations by %</p>
+                </div>
+              </div>
+              <Link href="/browse">
+                <Button variant="outline" className="gap-2">
+                  View All
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {trendingGlobal.map((item, idx) => (
+                <ItemCard
+                  key={item.external_id || idx}
+                  item={item}
+                  isExternal={true}
+                  showScore={true}
+                  score={item.score_percent || item.popularity || 0}
+                />
               ))}
             </div>
           </div>

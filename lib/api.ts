@@ -399,6 +399,8 @@ export const adminAPI = {
       body: JSON.stringify(data),
     }),
   
+
+// (discoverAPI accidentally injected here previously) removed to fix syntax
   updateItem: (itemId: number, data: Partial<Item>) =>
     apiRequest<{ message: string }>(`/admin/item/${itemId}`, {
       method: 'PUT',
@@ -677,20 +679,23 @@ export const wishlistAPI = {
     apiRequest<{ in_wishlist: boolean }>(`/wishlist/check/${itemId}`),
 };
 
-// Discovery API
-export const discoveryAPI = {
+// Discovery API (exported as `discoverAPI` and aliased to `discoveryAPI`)
+export const discoverAPI = {
   getTrending: (type: string = 'movie') =>
     apiRequest<{ results: any[] }>(`/discover/trending?type=${type}`),
-  
+
   searchExternalPublic: (type: string, query: string) =>
     apiRequest<{ results: any[] }>(`/discover/search?type=${type}&q=${query}`),
-  
+
   syncExternalItem: (itemData: any) =>
     apiRequest<{ message: string; item_id: number }>('/discover/sync', {
       method: 'POST',
       body: JSON.stringify(itemData),
     }),
 };
+
+// Backwards-compatible alias
+export const discoveryAPI = discoverAPI;
 
 // Backwards-compatible camelCase aliases (some files import adminApi, itemsApi, creditsApi, etc.)
 export const authApi = authAPI;

@@ -48,6 +48,30 @@ def add_new_content():
             ("Wings of Fire", "The autobiography of the 'Missile Man' of India, APJ Abdul Kalam.", "Biography", "book", 0, 92)
         ]
 
+        # Extra Ethiopian content to expand the Ethiopian section
+        extra_items = [
+            ("Lamb", "A haunting Ethiopian film that explores family, tradition and the emotional ties between a boy and his lamb.", "Drama", "movie", 1, 86),
+            ("Difret", "Based on true events, an Ethiopian girl's prosecution of societal norms sparks a national dialogue.", "Drama", "movie", 1, 88),
+            ("Teza", "A lyrical Ethiopian film dealing with memory, diaspora and political trauma.", "Drama", "movie", 1, 90),
+            ("Beneath the Lion's Gaze", "A moving novel set in Ethiopia during political upheaval.", "Historical Fiction", "book", 1, 90),
+            ("The Shadow King", "A powerful novel by an Ethiopian author exploring war and identity.", "Historical Fiction", "book", 1, 89),
+            ("Fikir Eske Mekabir", "A classic Amharic novel exploring love, loss and society.", "Fiction", "book", 1, 88),
+            ("Cutting for Stone", "A sweeping novel connected to Ethiopia's medical history and culture.", "Fiction", "book", 0, 92)
+        ]
+
+        new_items.extend(extra_items)
+
+        # Additional Ethiopian titles requested by user
+        more_ethiopian = [
+            ("Atletu (The Athlete)", "Documentary about Ethiopian runners and their legacy.", "Documentary", "movie", 1, 85),
+            ("Yegna", "A drama-musical following a girl group's rise and social impact in Ethiopia.", "Drama/Musical", "movie", 1, 82),
+            ("Oromay", "A notable Amharic novel exploring modern themes and society.", "Fiction", "book", 1, 87),
+            ("The Beautiful Ones Are Not Yet Born", "A regionally important novel included for cultural breadth.", "Fiction", "book", 1, 86),
+            ("Ye Fikir", "A classic-style tale of love and society in Ethiopia.", "Fiction", "book", 1, 85)
+        ]
+
+        new_items.extend(more_ethiopian)
+
         for title, desc, genre, i_type, is_eth, pop in new_items:
             # Check if exists
             cursor.execute("SELECT id FROM items WHERE title = %s", (title,))
@@ -74,6 +98,11 @@ def add_new_content():
                 elif title == "The Godfather": director = "Francis Ford Coppola"
                 elif title == "Parasite": director = "Bong Joon-ho"
                 elif title == "Interstellar": director = "Christopher Nolan"
+                elif title == "Lamb": director = "Yared Zeleke"
+                elif title == "Difret": director = "Zeresenay Mehari"
+                elif title == "Teza": director = "Haile Gerima"
+                elif title == "Atletu (The Athlete)": director = "Various"
+                elif title == "Yegna": director = "Various"
                 
                 cursor.execute("INSERT INTO movies (item_id, director) VALUES (%s, %s)", (item_id, director))
             
@@ -99,6 +128,13 @@ def add_new_content():
                 elif title == "The Alchemist": author = "Paulo Coelho"
                 elif title == "Long Walk to Freedom": author = "Nelson Mandela"
                 elif title == "Wings of Fire": author = "APJ Abdul Kalam"
+                elif title == "Beneath the Lion's Gaze": author = "Maaza Mengiste"
+                elif title == "The Shadow King": author = "Maaza Mengiste"
+                elif title == "Fikir Eske Mekabir": author = "Haddis Alemayehu"
+                elif title == "Cutting for Stone": author = "Abraham Verghese"
+                elif title == "Oromay": author = "Bealu Girma"
+                elif title == "The Beautiful Ones Are Not Yet Born": author = "Ayi Kwei Armah"
+                elif title == "Ye Fikir": author = "Various"
                 
                 cursor.execute("INSERT INTO books (item_id, author) VALUES (%s, %s)", (item_id, author))
 

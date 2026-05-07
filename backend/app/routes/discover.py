@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from app.services.media_api import MediaAPIService
 from app.utils.database import execute_query
 from app.utils.auth import token_required
+import requests
 
 discover_bp = Blueprint('discover', __name__)
 
@@ -28,10 +29,47 @@ def set_synced(results):
 @discover_bp.route('/trending', methods=['GET'])
 def get_trending():
     item_type = request.args.get('type', 'movie')
-    if item_type not in ['movie', 'book', 'music']: return jsonify({'results': []}), 200
-    
+    limit = min(int(request.args.get('limit', 10)), 50)
+    if item_type not in ['movie', 'book', 'music']:
+        return jsonify({'results': []}), 200
+
     try:
-        results = MediaAPIService.get_trending(item_type)
+        results = []
+
+        if item_type == 'movie':
+            tmdb_key = current_app.config.get('TMDB_API_KEY')
+            if not tmdb_key:
+                results = MediaAPIService.get_trending('movie')
+            else:
+                url = 'https://api.themoviedb.org/3/trending/movie/day'
+                resp = requests.get(url, params={'api_key': tmdb_key}, timeout=6)
+                if resp.status_code == 200:
+                    items = resp.json().get('results', [])[:limit]
+                    max_pop = max((i.get('popularity') or 0) for i in items) or 1
+                    for m in items:
+                        pop = m.get('popularity') or 0
+                        score = round((pop / max_pop) * 100)
+                        results.append({
+                            'title': m.get('title'),
+                            'external_id': f"tmdb_{m.get('id')}",
+                            'cover_image': (f"https://image.tmdb.org/t/p/w500{m.get('poster_path')}" if m.get('poster_path') else None),
+                            'item_type': 'movie',
+                            'creator': m.get('origin_country', [''])[0] or 'Director',
+                            'popularity': pop,
+                            'streaming_links': [{'provider': 'tmdb', 'url': f"https://www.themoviedb.org/movie/{m.get('id')}"}] if m.get('id') else [],
+                            'score_percent': score
+                        })
+
+        else:
+            svc_results = MediaAPIService.get_trending(item_type) or []
+            items = svc_results[:limit]
+            max_pop = max((i.get('popularity') or 0) for i in items) or 1
+            for i in items:
+                pop = i.get('popularity') or 0
+                score = round((pop / max_pop) * 100)
+                i['score_percent'] = score
+            results = items
+
         return jsonify(set_synced(results)), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500

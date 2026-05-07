@@ -645,6 +645,8 @@ function DiscoveryGrid({ items, loading, onSync }: { items: any[], loading: bool
           <ItemCard 
             item={item} 
             isExternal={!item.id}
+            showScore
+            score={item.popularity || item.popularity_score || 0}
           />
         </div>
       ))}

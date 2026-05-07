@@ -51,7 +51,7 @@ export function Navbar() {
     { icon: Film, label: t('nav.movie'), href: '/browse?type=movie', color: 'text-blue-500' },
     { icon: Music, label: t('nav.music'), href: '/browse?type=music', color: 'text-purple-500' },
     { icon: BookOpen, label: t('nav.book'), href: '/browse?type=book', color: 'text-emerald-500' },
-    { icon: Globe, label: t('nav.ethiopian'), href: '/ethiopian', color: 'text-amber-500' },
+    { icon: Globe, label: t('nav.ethiopian'), href: '/ethiopian', color: 'text-emerald-700' },
     { icon: Brain, label: t('nav.recommendations'), href: isAuthenticated ? '/dashboard#recommendations' : '/login', color: 'text-rose-500' },
   ];
 
@@ -79,11 +79,19 @@ export function Navbar() {
                   : "text-muted-foreground"
               )}
             >
-              <link.icon className={cn(
-                "h-5 w-5 mb-0.5 transition-transform group-hover:scale-110",
-                pathname === link.href ? link.color : "text-muted-foreground opacity-80 group-hover:opacity-100",
-                pathname !== link.href && `group-hover:${link.color}`
-              )} />
+              {link.href === '/ethiopian' ? (
+                <span className="inline-flex h-5 w-4 flex-col items-stretch rounded-sm overflow-hidden border border-gray-200 shadow-sm">
+                  <span className="block h-1/3 w-full bg-green-600" />
+                  <span className="block h-1/3 w-full bg-yellow-400" />
+                  <span className="block h-1/3 w-full bg-red-600" />
+                </span>
+              ) : (
+                <link.icon className={cn(
+                  "h-5 w-5 mb-0.5 transition-transform group-hover:scale-110",
+                  pathname === link.href ? link.color : "text-muted-foreground opacity-80 group-hover:opacity-100",
+                  pathname !== link.href && `group-hover:${link.color}`
+                )} />
+              )}
               <span className={cn(
                 "text-[10px] font-bold uppercase tracking-wider",
                 pathname === link.href ? link.color : "text-muted-foreground"
@@ -224,7 +232,15 @@ export function Navbar() {
                     : "hover:bg-secondary"
                 )}
               >
-                <link.icon className={cn("h-4 w-4", link.color)} />
+                {link.href === '/ethiopian' ? (
+                  <span className="inline-flex h-4 w-3 flex-col items-stretch rounded-sm overflow-hidden">
+                    <span className="block h-1/3 w-full bg-green-600" />
+                    <span className="block h-1/3 w-full bg-yellow-400" />
+                    <span className="block h-1/3 w-full bg-red-600" />
+                  </span>
+                ) : (
+                  <link.icon className={cn("h-4 w-4", link.color)} />
+                )}
                 {link.label}
               </Link>
             ))}
