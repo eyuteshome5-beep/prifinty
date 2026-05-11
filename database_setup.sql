@@ -352,7 +352,7 @@ DELIMITER ;
 
 INSERT INTO `users` (`username`, `email`, `password_hash`, `role`, `credits`, `is_active`)
 VALUES ('admin', 'admin@example.com',
-        '$2b$12$SGW.VbAnYaJwiX2WDJGcDOHGbijDs3XqvVrTMpzjMAK9b3x2KC7c2',
+        '$2b$12$JlrFJujoSkn1R6AUA1Q.iO9BRDl8dUqLWxkIME0sKzSJC3B4T.t.q',
         'admin', 99999, 1);
 
 -- Admin preferences
