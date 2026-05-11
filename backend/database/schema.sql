@@ -303,4 +303,4 @@ INSERT INTO music (item_id, artist, release_year, language) VALUES
 
 -- Create admin user (password: admin123)
 INSERT INTO users (username, email, password_hash, role, credits) VALUES
-('admin', 'admin@example.com', '$2b$12$JlrFJujoSkn1R6AUA1Q.iO9BRDl8dUqLWxkIME0sKzSJC3B4T.t.q', 'admin', 9999);
+('admin', 'admin@example.com', '$2b$12$65qVYWpFXavz0ePupa/dGOA5f4InqWhP8efkB1Ohs7QEtGeXDP/vm', 'admin', 9999);

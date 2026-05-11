@@ -381,7 +381,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin','admin@example.com','$2b$12$JlrFJujoSkn1R6AUA1Q.iO9BRDl8dUqLWxkIME0sKzSJC3B4T.t.q','admin',9977,'2026-04-04 14:09:52','2026-04-04 14:33:38','2026-04-04 11:27:13',1);
+INSERT INTO `users` VALUES (1,'admin','admin@example.com','$2b$12$65qVYWpFXavz0ePupa/dGOA5f4InqWhP8efkB1Ohs7QEtGeXDP/vm','admin',9977,'2026-04-04 14:09:52','2026-04-04 14:33:38','2026-04-04 11:27:13',1);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
