@@ -40,6 +40,7 @@ def main():
     parser.add_argument('--username', default='admin', help='Admin username')
     parser.add_argument('--email', default='admin@example.com', help='Admin email')
     parser.add_argument('--length', type=int, default=14, help='Generated password length')
+    parser.add_argument('--password', default=None, help='Explicit password to set (use with care)')
     parser.add_argument('--yes', action='store_true', help='Skip interactive confirmation')
     args = parser.parse_args()
 
@@ -62,7 +63,14 @@ def main():
             print('Aborted.')
             sys.exit(1)
 
-    new_password = generate_password(args.length)
+    # Use explicit password if provided, otherwise generate one
+    if args.password:
+        new_password = args.password
+        if len(new_password) < 8:
+            print('Provided password is too short. Password must be at least 8 characters.')
+            sys.exit(1)
+    else:
+        new_password = generate_password(args.length)
     hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     try:
