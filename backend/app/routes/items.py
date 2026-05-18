@@ -209,12 +209,17 @@ def get_item(item_id):
     }), 200
 
 
-@items_bp.route('/<int:item_id>/spotify', methods=['GET'])
+@items_bp.route('/<item_id>/spotify', methods=['GET'])
 def get_item_spotify(item_id):
     """Return spotify_id for music items if available"""
+    try:
+        item_id_parsed = int(item_id)
+    except ValueError:
+        item_id_parsed = item_id
+
     item = execute_query(
         "SELECT id, item_type FROM items WHERE id = %s",
-        (item_id,),
+        (item_id_parsed,),
         fetch_one=True
     )
     if not item:

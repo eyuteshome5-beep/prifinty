@@ -1,5 +1,6 @@
-import sys, json
-sys.path.append('backend')
+import sys, os, json
+script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.abspath(os.path.join(script_dir, '..')))
 
 try:
     from app.services.media_api import MediaAPIService

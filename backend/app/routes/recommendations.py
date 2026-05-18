@@ -5,6 +5,7 @@ from flask import Blueprint, request, jsonify, g, current_app
 from app.utils.database import execute_query
 from app.utils.auth import token_required, credits_required
 from app.utils.cache import cache_get, cache_set
+from app.utils.limiter import limiter
 
 
 def get_recommendation_engine():
@@ -32,6 +33,7 @@ recommendations_bp = Blueprint('recommendations', __name__)
 @recommendations_bp.route('', methods=['GET'])
 @token_required
 @credits_required('recommendation')
+@limiter.limit("10 per minute")
 def get_recommendations():
     """Get personalized recommendations for the current user"""
     user_id = g.current_user['id']

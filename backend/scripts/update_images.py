@@ -2,8 +2,12 @@ import os
 import mysql.connector
 from dotenv import load_dotenv
 
+# Get absolute paths relative to this script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+dotenv_path = os.path.abspath(os.path.join(script_dir, '..', '.env'))
+
 # Load environment variables
-load_dotenv('backend/.env')
+load_dotenv(dotenv_path)
 
 def update_images():
     try:

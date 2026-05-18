@@ -1,11 +1,12 @@
 """
 Authentication Routes - Register, Login, Logout
 """
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, make_response
 from app.utils.database import execute_query
 from app.utils.auth import (
     hash_password, verify_password, generate_token, 
-    token_required, get_current_user
+    token_required, get_current_user, generate_tokens_pair,
+    decode_refresh_token
 )
 from datetime import datetime
 
@@ -51,24 +52,24 @@ def register():
     
     try:
         user_id = execute_query(
-            """INSERT INTO users (username, email, password_hash, role, credits) 
-               VALUES (%s, %s, %s, 'user', %s)""",
-            (username, email, password_hash, initial_credits),
+            """INSERT INTO users (username, email, password_hash, role, credits, is_active) 
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (username, email, password_hash, 'user', initial_credits, 1),
             fetch_all=False
         )
         
         # Create default preferences
         execute_query(
             """INSERT INTO preferences (user_id, preferred_genres, preferred_languages, ethiopian_content_preference)
-               VALUES (%s, '[]', '["English", "Amharic"]', FALSE)""",
-            (user_id,),
+               VALUES (%s, %s, %s, %s)""",
+            (user_id, '[]', '["English", "Amharic"]', False),
             fetch_all=False
         )
         
-        # Generate token
-        token = generate_token(user_id, 'user')
+        # Generate tokens pair
+        token, refresh_token = generate_tokens_pair(user_id, 'user')
         
-        return jsonify({
+        response = make_response(jsonify({
             'message': 'Registration successful',
             'token': token,
             'user': {
@@ -78,7 +79,17 @@ def register():
                 'role': 'user',
                 'credits': initial_credits
             }
-        }), 201
+        }), 201)
+        
+        response.set_cookie(
+            'refresh_token',
+            refresh_token,
+            httponly=True,
+            secure=True,
+            samesite='Lax',
+            max_age=7 * 24 * 60 * 60
+        )
+        return response
         
     except Exception as e:
         return jsonify({'error': 'Registration failed', 'details': str(e)}), 500
@@ -123,8 +134,8 @@ def login():
     # Check for daily login bonus
     bonus_awarded = award_daily_login_bonus(user['id'])
     
-    # Generate token
-    token = generate_token(user['id'], user['role'])
+    # Generate tokens pair
+    token, refresh_token = generate_tokens_pair(user['id'], user['role'])
     
     # Get updated credits
     updated_user = execute_query(
@@ -152,7 +163,16 @@ def login():
             'message': 'Daily login bonus awarded!'
         }
     
-    return jsonify(response_data), 200
+    response = make_response(jsonify(response_data), 200)
+    response.set_cookie(
+        'refresh_token',
+        refresh_token,
+        httponly=True,
+        secure=True,
+        samesite='Lax',
+        max_age=7 * 24 * 60 * 60
+    )
+    return response
 
 
 def award_daily_login_bonus(user_id):
@@ -199,10 +219,11 @@ def award_daily_login_bonus(user_id):
 
 
 @auth_bp.route('/logout', methods=['POST'])
-@token_required
 def logout():
-    """Logout user (client should discard token)"""
-    return jsonify({'message': 'Logout successful'}), 200
+    """Logout user and clear the refresh token cookie"""
+    response = make_response(jsonify({'message': 'Logout successful'}), 200)
+    response.delete_cookie('refresh_token')
+    return response
 
 
 @auth_bp.route('/me', methods=['GET'])
@@ -232,18 +253,46 @@ def get_me():
 
 
 @auth_bp.route('/refresh', methods=['POST'])
-@token_required
 def refresh_token():
-    """Refresh JWT token"""
-    from flask import g
-    user = g.current_user
+    """Refresh JWT access token using the HTTP-only refresh token cookie"""
+    refresh_token_cookie = request.cookies.get('refresh_token')
+    if not refresh_token_cookie:
+        return jsonify({'error': 'Refresh token missing'}), 401
+        
+    payload = decode_refresh_token(refresh_token_cookie)
+    if not payload:
+        return jsonify({'error': 'Invalid or expired refresh token'}), 401
+        
+    user_id = payload['user_id']
     
-    new_token = generate_token(user['id'], user['role'])
+    # Verify user still exists and is active
+    user = execute_query(
+        "SELECT id, role, is_active FROM users WHERE id = %s",
+        (user_id,),
+        fetch_one=True
+    )
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    if not user.get('is_active', True):
+        return jsonify({'error': 'Account is deactivated'}), 403
+        
+    # Generate new rotated tokens pair
+    new_access_token, new_refresh_token = generate_tokens_pair(user_id, user['role'])
     
-    return jsonify({
-        'token': new_token,
+    response = make_response(jsonify({
+        'token': new_access_token,
         'message': 'Token refreshed successfully'
-    }), 200
+    }), 200)
+    
+    response.set_cookie(
+        'refresh_token',
+        new_refresh_token,
+        httponly=True,
+        secure=True,
+        samesite='Lax',
+        max_age=7 * 24 * 60 * 60
+    )
+    return response
 
 
 @auth_bp.route('/reset-password', methods=['POST'])

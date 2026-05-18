@@ -11,7 +11,10 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     
-    # MySQL Database Configuration
+    # MongoDB Database Configuration
+    MONGO_URI = os.environ.get('MONGO_URI') or 'mongodb://localhost:27017/ethiopian_recommendations'
+    
+    # MySQL Database Configuration (kept as fallback/metadata)
     MYSQL_HOST = os.environ.get('MYSQL_HOST') or 'localhost'
     MYSQL_USER = os.environ.get('MYSQL_USER') or 'root'
     MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD') or ''

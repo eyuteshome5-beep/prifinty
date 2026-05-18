@@ -22,6 +22,27 @@ import {
 import { itemsAPI, discoverAPI, type Item } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useLanguage } from '@/lib/language-context';
+import { Skeleton } from '@/components/ui/skeleton';
+
+function CatalogSkeleton() {
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {[1, 2, 3, 4].map((i) => (
+        <Card key={i} className="overflow-hidden border-white/5 bg-white/5 backdrop-blur-md h-full">
+          <Skeleton className="aspect-[3/4] w-full bg-white/10" />
+          <CardContent className="p-4 md:p-5 space-y-3">
+            <Skeleton className="h-5 w-3/4 bg-white/10" />
+            <Skeleton className="h-4 w-1/2 bg-white/10" />
+            <div className="flex justify-between items-center pt-2">
+              <Skeleton className="h-6 w-16 bg-white/10 rounded-full" />
+              <Skeleton className="h-8 w-8 bg-white/10 rounded-full" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
@@ -184,7 +205,7 @@ export default function HomePage() {
       </section>
 
       {/* Ethiopian Content Section */}
-      {ethiopianContent.length > 0 && (
+      {(isLoading || ethiopianContent.length > 0) && (
         <section className="bg-gradient-to-r from-amber-500/5 via-amber-500/10 to-amber-500/5 py-16">
           <div className="container">
             <div className="mb-8 flex items-center justify-between">
@@ -211,11 +232,15 @@ export default function HomePage() {
               </Link>
             </div>
             
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {ethiopianContent.map((item) => (
-                <ItemCard key={item.id} item={item} />
-              ))}
-            </div>
+            {isLoading ? (
+              <CatalogSkeleton />
+            ) : (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {ethiopianContent.map((item) => (
+                  <ItemCard key={item.id} item={item} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -258,7 +283,7 @@ export default function HomePage() {
       )}
 
       {/* Popular Movies */}
-      {popularMovies.length > 0 && (
+      {(isLoading || popularMovies.length > 0) && (
         <section className="py-16">
           <div className="container">
             <div className="mb-8 flex items-center justify-between">
@@ -279,17 +304,21 @@ export default function HomePage() {
               </Link>
             </div>
             
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {popularMovies.map((item) => (
-                <ItemCard key={item.id} item={item} />
-              ))}
-            </div>
+            {isLoading ? (
+              <CatalogSkeleton />
+            ) : (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {popularMovies.map((item) => (
+                  <ItemCard key={item.id} item={item} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
 
       {/* Popular Music */}
-      {popularMusic.length > 0 && (
+      {(isLoading || popularMusic.length > 0) && (
         <section className="bg-secondary/30 py-16">
           <div className="container">
             <div className="mb-8 flex items-center justify-between">
@@ -310,17 +339,21 @@ export default function HomePage() {
               </Link>
             </div>
             
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {popularMusic.map((item) => (
-                <ItemCard key={item.id} item={item} />
-              ))}
-            </div>
+            {isLoading ? (
+              <CatalogSkeleton />
+            ) : (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {popularMusic.map((item) => (
+                  <ItemCard key={item.id} item={item} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
 
       {/* Popular Books */}
-      {popularBooks.length > 0 && (
+      {(isLoading || popularBooks.length > 0) && (
         <section className="py-16">
           <div className="container">
             <div className="mb-8 flex items-center justify-between">
@@ -341,11 +374,15 @@ export default function HomePage() {
               </Link>
             </div>
             
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {popularBooks.map((item) => (
-                <ItemCard key={item.id} item={item} />
-              ))}
-            </div>
+            {isLoading ? (
+              <CatalogSkeleton />
+            ) : (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {popularBooks.map((item) => (
+                  <ItemCard key={item.id} item={item} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from app.services.media_api import MediaAPIService
 from app.utils.database import execute_query
 from app.utils.auth import token_required
+from app.utils.limiter import limiter
 import requests
 
 discover_bp = Blueprint('discover', __name__)
@@ -27,6 +28,7 @@ def set_synced(results):
     return {'results': results}
 
 @discover_bp.route('/trending', methods=['GET'])
+@limiter.limit("60 per minute")
 def get_trending():
     item_type = request.args.get('type', 'movie')
     limit = min(int(request.args.get('limit', 10)), 50)
@@ -45,7 +47,7 @@ def get_trending():
                 resp = requests.get(url, params={'api_key': tmdb_key}, timeout=6)
                 if resp.status_code == 200:
                     items = resp.json().get('results', [])[:limit]
-                    max_pop = max((i.get('popularity') or 0) for i in items) or 1
+                    max_pop = max((i.get('popularity') or 0) for i in items) if items else 1
                     for m in items:
                         pop = m.get('popularity') or 0
                         score = round((pop / max_pop) * 100)
@@ -63,7 +65,7 @@ def get_trending():
         else:
             svc_results = MediaAPIService.get_trending(item_type) or []
             items = svc_results[:limit]
-            max_pop = max((i.get('popularity') or 0) for i in items) or 1
+            max_pop = max((i.get('popularity') or 0) for i in items) if items else 1
             for i in items:
                 pop = i.get('popularity') or 0
                 score = round((pop / max_pop) * 100)
@@ -75,6 +77,7 @@ def get_trending():
         return jsonify({'error': str(e)}), 500
 
 @discover_bp.route('/search', methods=['GET'])
+@limiter.limit("30 per minute")
 def search_external():
     item_type = request.args.get('type', 'movie')
     query = request.args.get('q', '')
@@ -88,6 +91,7 @@ def search_external():
 
 @discover_bp.route('/sync', methods=['POST'])
 @token_required
+@limiter.limit("15 per minute")
 def sync_external_item():
     data = request.get_json()
     if not data or data.get('item_type') not in ['movie', 'book', 'music']: 

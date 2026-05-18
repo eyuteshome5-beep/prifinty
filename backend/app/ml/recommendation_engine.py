@@ -2,6 +2,7 @@
 AI Recommendation Engine
 Implements Collaborative Filtering, Content-Based Filtering, and Hybrid approaches
 """
+import time
 from collections import defaultdict
 from app.utils.database import execute_query
 from flask import current_app
@@ -16,6 +17,9 @@ class RecommendationEngine:
     - Cross-Domain Recommendations
     - Ethiopian Content Boosting
     """
+    
+    # Class-level cache to O(1) persist TF-IDF objects across requests
+    _tfidf_cache = None
     
     def __init__(self):
         self.ethiopian_boost_factor = 1.3  # 30% boost for Ethiopian content
@@ -42,14 +46,14 @@ class RecommendationEngine:
         all_ratings = execute_query(ratings_query, tuple(params))
         
         if not all_ratings or len(set(r['user_id'] for r in all_ratings)) < 2:
-            return self.cold_start_recommendations(item_type, limit)
+            return self.cold_start_recommendations(item_type, limit, user_id)
         
         # Build user-item rating matrix from the recent sample
         users = list({r['user_id'] for r in all_ratings})
         items = list({r['item_id'] for r in all_ratings})
         
         if user_id not in users:
-            return self.cold_start_recommendations(item_type, limit)
+            return self.cold_start_recommendations(item_type, limit, user_id)
         
         user_idx = {u: i for i, u in enumerate(users)}
         item_idx = {it: i for i, it in enumerate(items)}
@@ -65,7 +69,7 @@ class RecommendationEngine:
             user_similarity = cosine_similarity(matrix)
         except Exception:
             # Fallback to cold start if numeric or ML libs unavailable or error occurs
-            return self.cold_start_recommendations(item_type, limit)
+            return self.cold_start_recommendations(item_type, limit, user_id)
         target_idx = user_idx[user_id]
         
         # Get similar users (excluding self)
@@ -85,7 +89,7 @@ class RecommendationEngine:
         recommended_ids = sorted(item_scores.keys(), key=lambda x: item_scores[x], reverse=True)[:limit]
         
         if not recommended_ids:
-            return self.cold_start_recommendations(item_type, limit)
+            return self.cold_start_recommendations(item_type, limit, user_id)
         
         return self._fetch_items_with_scores(recommended_ids, item_scores, 'collaborative')
     
@@ -103,7 +107,7 @@ class RecommendationEngine:
         )
         
         if not user_ratings:
-            return self.cold_start_recommendations(item_type, limit)
+            return self.cold_start_recommendations(item_type, limit, user_id)
         
         items_query = "SELECT id, title, genre, description, item_type, is_ethiopian, avg_rating FROM items"
         items_params = []
@@ -113,7 +117,7 @@ class RecommendationEngine:
         
         all_items = execute_query(items_query, tuple(items_params) if items_params else None)
         if len(all_items) < 2:
-            return self.cold_start_recommendations(item_type, limit)
+            return self.cold_start_recommendations(item_type, limit, user_id)
         
         liked_ids = set(r['id'] for r in user_ratings)
         
@@ -127,14 +131,32 @@ class RecommendationEngine:
             from sklearn.feature_extraction.text import TfidfVectorizer
             from sklearn.metrics.pairwise import cosine_similarity
 
-            vectorizer = TfidfVectorizer(stop_words='english', max_features=500)
-            tfidf_matrix = vectorizer.fit_transform(all_features)
+            now = time.time()
+            cached = RecommendationEngine._tfidf_cache
             
-            item_id_to_idx = {item['id']: idx for idx, item in enumerate(all_items)}
+            # If TF-IDF cache is valid (less than 10 minutes old) and has same number of items
+            if cached and (now - cached['timestamp'] < 600) and (len(cached['items']) == len(all_items)):
+                vectorizer = cached['vectorizer']
+                tfidf_matrix = cached['matrix']
+                item_id_to_idx = cached['item_id_to_idx']
+            else:
+                vectorizer = TfidfVectorizer(stop_words='english', max_features=500)
+                tfidf_matrix = vectorizer.fit_transform(all_features)
+                item_id_to_idx = {item['id']: idx for idx, item in enumerate(all_items)}
+                
+                # Persist in O(1) class-level cache
+                RecommendationEngine._tfidf_cache = {
+                    'matrix': tfidf_matrix,
+                    'vectorizer': vectorizer,
+                    'item_id_to_idx': item_id_to_idx,
+                    'items': all_items,
+                    'timestamp': now
+                }
+            
             liked_indices = [item_id_to_idx[id] for id in liked_ids if id in item_id_to_idx]
             
             if not liked_indices:
-                return self.cold_start_recommendations(item_type, limit)
+                return self.cold_start_recommendations(item_type, limit, user_id)
                 
             user_profile = np.asarray(tfidf_matrix[liked_indices].mean(axis=0)).flatten()
             similarities = cosine_similarity([user_profile], tfidf_matrix)[0]
@@ -143,10 +165,11 @@ class RecommendationEngine:
             recommended_ids = sorted(item_scores.keys(), key=lambda x: item_scores[x], reverse=True)[:limit]
             
             if not recommended_ids:
-                return self.cold_start_recommendations(item_type, limit)
+                return self.cold_start_recommendations(item_type, limit, user_id)
             return self._fetch_items_with_scores(recommended_ids, item_scores, 'content_based')
-        except:
-            return self.cold_start_recommendations(item_type, limit)
+        except Exception as e:
+            print(f"CONTENT FILTERING EXCEPTION: {e}")
+            return self.cold_start_recommendations(item_type, limit, user_id)
 
     def hybrid_recommendations(self, user_id, item_type=None, limit=20, ethiopian_boost=False):
         """
@@ -172,7 +195,7 @@ class RecommendationEngine:
         
         # FINAL GUARANTEE: If empty or too short, fill with popular items the user hasn't rated
         if len(sorted_ids) < limit:
-            extras = self.cold_start_recommendations(item_type, limit)
+            extras = self.cold_start_recommendations(item_type, limit, user_id)
             user_rated = set(r['item_id'] for r in execute_query("SELECT item_id FROM ratings WHERE user_id=%s", (user_id,)))
             for ex in extras:
                 if ex['id'] not in combined_scores and ex['id'] not in user_rated:
@@ -200,7 +223,7 @@ class RecommendationEngine:
         )
         
         if not genre_prefs:
-            return self.cold_start_recommendations(None, limit)
+            return self.cold_start_recommendations(None, limit, user_id)
         
         # Find cross-domain matches
         recommendations = []
@@ -288,10 +311,10 @@ class RecommendationEngine:
         
         return items
     
-    def cold_start_recommendations(self, item_type=None, limit=10):
+    def cold_start_recommendations(self, item_type=None, limit=10, user_id=None):
         """
         Recommendations for new users or when other algorithms fail
-        Returns popular and highly rated items
+        Returns popular and highly rated items (excludes user-rated items if user_id is provided)
         """
         query = """
             SELECT i.*, 
@@ -311,6 +334,10 @@ class RecommendationEngine:
         if item_type:
             query += " AND i.item_type = %s"
             params.append(item_type)
+            
+        if user_id:
+            query += " AND i.id NOT IN (SELECT item_id FROM ratings WHERE user_id = %s)"
+            params.append(user_id)
         
         query += f" ORDER BY i.popularity_score DESC, i.avg_rating DESC LIMIT {limit}"
         

@@ -45,6 +45,9 @@ export function ItemCard({
   const [isPending, setIsPending] = useState(false);
   const [spotifyUrl, setSpotifyUrl] = useState<string | null>(null);
   const [spotifyLoading, setSpotifyLoading] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [hasCheckedWishlist, setHasCheckedWishlist] = useState(false);
+  const [hasFetchedSpotify, setHasFetchedSpotify] = useState(false);
   const streamingLinks = item.streaming_links || [];
   
   const TypeIcon = typeIcons[item.item_type] || Film;
@@ -67,15 +70,16 @@ export function ItemCard({
   })();
 
   useEffect(() => {
-    if (isAuthenticated && initialInWishlist === undefined && !isWishlistItem && !isExternal && item.id) {
+    if (isAuthenticated && initialInWishlist === undefined && !isWishlistItem && !isExternal && item.id && !hasCheckedWishlist) {
       checkWishlistStatus();
     }
-  }, [isAuthenticated, item.id, isExternal]);
+  }, [isAuthenticated, item.id, isExternal, hasCheckedWishlist]);
 
   useEffect(() => {
     let mounted = true;
     const fetchSpotify = async () => {
-      if (!item?.id) return;
+      if (!item?.id || hasFetchedSpotify) return;
+      setHasFetchedSpotify(true);
       setSpotifyLoading(true);
       try {
         const res = await itemsAPI.getSpotifyUrl(item.id);
@@ -93,14 +97,15 @@ export function ItemCard({
       }
     };
 
-    if (item?.item_type === 'music') fetchSpotify();
+    if (item?.item_type === 'music' && !hasFetchedSpotify) fetchSpotify();
     return () => {
       mounted = false;
     };
-  }, [item?.id, item?.item_type]);
+  }, [item?.id, item?.item_type, hasFetchedSpotify]);
 
   const checkWishlistStatus = async () => {
-    if (!item.id) return;
+    if (!item.id || hasCheckedWishlist) return;
+    setHasCheckedWishlist(true);
     try {
       const { in_wishlist } = await wishlistAPI.checkWishlist(item.id);
       setIsFavorite(in_wishlist);
@@ -145,17 +150,18 @@ export function ItemCard({
 
   const CardImage = (
     <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-      {item.cover_image ? (
+      {item.cover_image && !imgError ? (
         <img
           src={item.cover_image}
           alt={item.title}
           loading="lazy"
           decoding="async"
+          onError={() => setImgError(true)}
           className="h-full w-full object-cover transition-transform group-hover:scale-110 duration-700"
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-secondary to-background">
-          <TypeIcon className="h-16 w-16 text-muted-foreground/40" />
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-secondary/50 via-secondary to-background">
+          <TypeIcon className="h-16 w-16 text-muted-foreground/40 animate-pulse" />
         </div>
       )}
       
@@ -215,12 +221,12 @@ export function ItemCard({
         <div className="min-w-0 flex-1">
           {isExternal ? (
             <h3 className="truncate font-bold text-base md:text-lg group-hover:text-primary transition-colors tracking-tight line-clamp-1">
-              {lang === 'am' && item.title_am ? item.title_am : item.title}
+              {(lang === 'am' && (item.title_am || item.amharic_title)) ? (item.title_am || item.amharic_title) : (item.title || item.name || 'Untitled')}
             </h3>
           ) : (
             <Link href={`/item/${item.id}`}>
               <h3 className="truncate font-bold text-base md:text-lg group-hover:text-primary transition-colors tracking-tight line-clamp-1">
-                {lang === 'am' && item.title_am ? item.title_am : item.title}
+                {(lang === 'am' && (item.title_am || item.amharic_title)) ? (item.title_am || item.amharic_title) : (item.title || item.name || 'Untitled')}
               </h3>
             </Link>
           )}

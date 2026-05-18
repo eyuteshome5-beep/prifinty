@@ -2,18 +2,15 @@
 """
 Reset or create an admin account and print a generated password.
 
-Usage (run on the server or locally with DB access):
+Usage:
   python reset_admin_password.py --yes
-
-This script reads DB credentials from `backend/.env` (dotenv) or from
-environment variables and will update or create an `admin` user. It prints
-the plaintext password only to stdout so it is not stored in the repo.
 """
 import os
+import sys
 import argparse
 import secrets
 import string
-import sys
+from dotenv import load_dotenv
 
 try:
     import bcrypt
@@ -21,13 +18,14 @@ except Exception:
     print("Missing dependency: bcrypt. Install with 'pip install bcrypt'")
     raise
 
-try:
-    import mysql.connector
-except Exception:
-    print("Missing dependency: mysql-connector-python. Install with 'pip install mysql-connector-python'")
-    raise
+# Add backend directory to sys.path
+script_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.abspath(os.path.join(script_dir, '..'))
+sys.path.append(backend_dir)
 
-from dotenv import load_dotenv
+load_dotenv(os.path.join(backend_dir, '.env'))
+
+from app.utils.database import execute_query
 
 
 def generate_password(length: int = 14) -> str:
@@ -44,19 +42,7 @@ def main():
     parser.add_argument('--yes', action='store_true', help='Skip interactive confirmation')
     args = parser.parse_args()
 
-    # Load .env from backend directory by default
-    script_dir = os.path.dirname(__file__)
-    dotenv_path = os.path.abspath(os.path.join(script_dir, '..', '.env'))
-    if os.path.exists(dotenv_path):
-        load_dotenv(dotenv_path)
-
-    host = os.getenv('MYSQL_HOST', 'localhost')
-    user = os.getenv('MYSQL_USER', 'root')
-    pwd = os.getenv('MYSQL_PASSWORD', '')
-    db_name = os.getenv('MYSQL_DB', 'ethiopian_recommendations')
-    port = int(os.getenv('MYSQL_PORT', 3306))
-
-    print(f"Target DB: {user}@{host}:{port}/{db_name}")
+    print(f"Target DB: MongoDB (via execute_query)")
     if not args.yes:
         c = input(f"This will set password for '{args.username}' ({args.email}). Type 'yes' to proceed: ")
         if c.strip().lower() != 'yes':
@@ -74,43 +60,35 @@ def main():
     hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     try:
-        conn = mysql.connector.connect(host=host, user=user, password=pwd, database=db_name, port=port)
-        cursor = conn.cursor()
-    except Exception as e:
-        print('Failed to connect to database:', e)
-        sys.exit(1)
-
-    try:
-        cursor.execute("SELECT id FROM users WHERE username = %s OR email = %s", (args.username, args.email))
-        row = cursor.fetchone()
+        row = execute_query(
+            "SELECT id FROM users WHERE username = %s OR email = %s",
+            (args.username, args.email),
+            fetch_one=True
+        )
         if row:
-            uid = row[0]
-            cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hashed, uid))
+            uid = row['id']
+            execute_query(
+                "UPDATE users SET password_hash = %s WHERE id = %s",
+                (hashed, uid),
+                fetch_all=False
+            )
             print(f"Updated password for existing user id={uid}")
         else:
-            cursor.execute(
+            uid = execute_query(
                 "INSERT INTO users (username, email, password_hash, role, credits, is_active) VALUES (%s, %s, %s, 'admin', 99999, 1)",
-                (args.username, args.email, hashed)
+                (args.username, args.email, hashed),
+                fetch_all=False
             )
-            uid = cursor.lastrowid
             print(f"Created admin user id={uid}")
-
-        conn.commit()
-        cursor.close()
-        conn.close()
 
         print('\n=== ADMIN CREDENTIALS ===')
         print('Username:', args.username)
         print('Email:', args.email)
         print('Password:', new_password)
         print('========================\n')
-        print('Copy the password and delete this script or rotate the password after login.')
+        print('Copy the password and rotate or store it securely.')
 
     except Exception as e:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
         print('Error while updating database:', e)
         sys.exit(1)
 

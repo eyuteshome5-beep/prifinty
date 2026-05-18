@@ -54,6 +54,45 @@ def decode_token(token):
         return None
 
 
+def generate_tokens_pair(user_id, role):
+    """Generate a short-lived access token (15 mins) and a long-lived refresh token (7 days)"""
+    access_delta = timedelta(minutes=15)
+    refresh_delta = timedelta(days=7)
+    
+    access_token = generate_token(user_id, role, expires_delta=access_delta)
+    
+    payload = {
+        'user_id': user_id,
+        'role': role,
+        'type': 'refresh',
+        'exp': datetime.utcnow() + refresh_delta,
+        'iat': datetime.utcnow()
+    }
+    
+    refresh_token = jwt.encode(
+        payload,
+        current_app.config['JWT_SECRET_KEY'],
+        algorithm='HS256'
+    )
+    
+    return access_token, refresh_token
+
+
+def decode_refresh_token(token):
+    """Decode and validate a refresh token"""
+    try:
+        payload = jwt.decode(
+            token,
+            current_app.config['JWT_SECRET_KEY'],
+            algorithms=['HS256']
+        )
+        if payload.get('type') == 'refresh':
+            return payload
+        return None
+    except Exception:
+        return None
+
+
 def get_current_user():
     """Get current user from token"""
     auth_header = request.headers.get('Authorization')

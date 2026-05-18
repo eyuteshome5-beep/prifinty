@@ -1,5 +1,5 @@
 "use client";
-
+ 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Navbar } from '@/components/navbar';
@@ -9,6 +9,28 @@ import { useAuth } from '@/lib/auth-context';
 import { useLanguage } from '@/lib/language-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+ 
+function CatalogSkeleton() {
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+        <Card key={i} className="overflow-hidden border-white/5 bg-white/5 backdrop-blur-md h-full">
+          <Skeleton className="aspect-[3/4] w-full bg-white/10" />
+          <CardContent className="p-4 md:p-5 space-y-3">
+            <Skeleton className="h-5 w-3/4 bg-white/10" />
+            <Skeleton className="h-4 w-1/2 bg-white/10" />
+            <div className="flex justify-between items-center pt-2">
+              <Skeleton className="h-6 w-16 bg-white/10 rounded-full" />
+              <Skeleton className="h-8 w-8 bg-white/10 rounded-full" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 import { 
   Select,
   SelectContent,
@@ -303,8 +325,8 @@ function BrowseContent() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('browse.filter_all_genres')}</SelectItem>
-                {genres.map((g) => (
-                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                {genres.map((g, idx) => (
+                  <SelectItem key={`${g}-${idx}`} value={g}>{g}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -378,14 +400,12 @@ function BrowseContent() {
 
         {/* Results */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <CatalogSkeleton />
         ) : items.length > 0 ? (
           <>
             <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {items.map((item) => (
-                <div key={item.id || (item as any).external_id} onClick={() => handleItemSyncAndNavigate(item)} className="cursor-pointer transition-transform hover:scale-[1.02]">
+              {items.map((item, idx) => (
+                <div key={item.id ? `local-${item.id}` : `ext-${(item as any).external_id || idx}`} onClick={() => handleItemSyncAndNavigate(item)} className="cursor-pointer transition-transform hover:scale-[1.02]">
                   <ItemCard
                     item={item}
                     isExternal={!item.id}

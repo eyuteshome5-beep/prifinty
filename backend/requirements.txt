@@ -3,7 +3,8 @@ Flask==3.0.0
 Flask-CORS==4.0.0
 
 # Database
-mysql-connector-python==8.2.0
+pymongo==4.17.0
+dnspython>=2.8.0
 
 # Authentication
 PyJWT==2.8.0
