@@ -376,13 +376,9 @@ def forgot_password_request():
             fetch_all=False
         )
         
-        # LOG CODE TO CONSOLE (Simulation)
-        print(f"\n[EMAIL SIMULATION] To: {email}")
-        print(f"[EMAIL SIMULATION] Your Prefinity AI Verification Code is: {code}")
-        print(f"[EMAIL SIMULATION] Expiring at: {expires_at}\n")
-        
-        # In a real production app, you would use an email service here:
-        # send_verification_email(email, code)
+        # Send verification email (SMTP or Simulation fallback)
+        from app.utils.email_sender import send_verification_email
+        send_verification_email(email, code)
         
         return jsonify({
             'message': 'Verification code sent to your email',
