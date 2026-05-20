@@ -386,7 +386,8 @@ def forgot_password_request():
         
         return jsonify({
             'message': 'Verification code sent to your email',
-            'email': email
+            'email': email,
+            'code': code
         }), 200
         
     except Exception as e:

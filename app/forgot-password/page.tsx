@@ -47,7 +47,9 @@ export default function ForgotPasswordPage() {
       
       toast({
         title: "Code Sent",
-        description: "A 6-digit verification code has been sent to your email.",
+        description: data.code 
+          ? `[DEV MODE] Verification Code is: ${data.code}` 
+          : "A 6-digit verification code has been sent to your email.",
       });
       setStep("code");
     } catch (err: any) {
