@@ -92,6 +92,9 @@ async function apiRequest<T>(
   }
   
   if (!response.ok) {
+    if (response.status === 401) {
+      setAuthToken(null);
+    }
     const errorMsg = data.message && data.error ? `${data.error} - ${data.message}` : data.error || data.message;
     throw new Error(errorMsg || `Request failed with status ${response.status}`);
   }
