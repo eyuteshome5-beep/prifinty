@@ -94,6 +94,9 @@ async function apiRequest<T>(
   if (!response.ok) {
     if (response.status === 401) {
       setAuthToken(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('prefinity:unauthorized'));
+      }
     }
     const errorMsg = data.message && data.error ? `${data.error} - ${data.message}` : data.error || data.message;
     throw new Error(errorMsg || `Request failed with status ${response.status}`);
@@ -104,14 +107,14 @@ async function apiRequest<T>(
 
 // Auth API
 export const authAPI = {
-  register: (username: string, email: string, password: string) =>
+  register: (username: string, email: string, password: string, preferred_genres: string[], favorite_media_types: string[], favorite_countries: string[], favorite_authors: string[], favorite_book_types: string[], favorite_artists: string[], favorite_decades: string[], favorite_music_genres: string[]) =>
     apiRequest<{
       message: string;
       token: string;
       user: User;
     }>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ username, email, password, preferred_genres, favorite_media_types, favorite_countries, favorite_authors, favorite_book_types, favorite_artists, favorite_decades, favorite_music_genres }),
     }),
   
   login: (email: string, password: string) =>

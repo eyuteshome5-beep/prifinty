@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Navbar } from '@/components/navbar';
 import { ItemCard } from '@/components/item-card';
 import { useLanguage } from '@/lib/language-context';
@@ -19,8 +19,13 @@ import {
   Info,
   Flame,
   Star,
-  ChevronRight
+  ChevronRight,
+  Search,
+  X,
+  SlidersHorizontal
 } from 'lucide-react';
+
+type CategoryTab = 'all' | 'movie' | 'music' | 'book';
 
 export default function EthiopianPage() {
   const { t, lang } = useLanguage();
@@ -30,6 +35,9 @@ export default function EthiopianPage() {
   const [books, setBooks] = useState<Item[]>([]);
   const [ethiopianGenres, setEthiopianGenres] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<CategoryTab>('all');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   useEffect(() => {
     fetchContent();
@@ -46,12 +54,10 @@ export default function EthiopianPage() {
       ]);
       
       let allItems = allData.items || [];
-      // Fallback: if backend ethiopian endpoint returns few items, try fetching items flagged as ethiopian
       if (allItems.length < 100) {
         try {
           const fallback = await itemsAPI.getItems({ ethiopian: true, per_page: 200 });
           const fallbackItems = fallback.items || [];
-          // Merge unique items by id
           const map = new Map<number, any>();
           [...allItems, ...fallbackItems].forEach((it: any) => map.set(it.id, it));
           allItems = Array.from(map.values());
@@ -60,7 +66,6 @@ export default function EthiopianPage() {
         }
       }
 
-      // Ensure we only show items actually flagged as Ethiopian
       const onlyEthiopian = (arr: any[]) => (arr || []).filter((it) => !!it.is_ethiopian);
 
       setAllContent(onlyEthiopian(allItems));
@@ -75,8 +80,42 @@ export default function EthiopianPage() {
     }
   };
 
-  // Find the first featured movie or high-rating item to act as the massive hero banner
+  // Filter items by search query
+  const filterBySearch = useCallback((items: Item[]) => {
+    if (!searchQuery.trim()) return items;
+    const q = searchQuery.toLowerCase();
+    return items.filter(item =>
+      (item.title && item.title.toLowerCase().includes(q)) ||
+      (item.creator && item.creator.toLowerCase().includes(q)) ||
+      (item.genre && item.genre.toLowerCase().includes(q)) ||
+      (item.description && item.description.toLowerCase().includes(q)) ||
+      ((item as any).amharic_title && (item as any).amharic_title.toLowerCase().includes(q))
+    );
+  }, [searchQuery]);
+
+  const filteredMovies = useMemo(() => filterBySearch(movies), [movies, filterBySearch]);
+  const filteredMusic = useMemo(() => filterBySearch(music), [music, filterBySearch]);
+  const filteredBooks = useMemo(() => filterBySearch(books), [books, filterBySearch]);
+  const filteredAll = useMemo(() => filterBySearch(allContent), [allContent, filterBySearch]);
+
+  // Get items for the current active tab
+  const currentItems = useMemo(() => {
+    switch (activeTab) {
+      case 'movie': return filteredMovies;
+      case 'music': return filteredMusic;
+      case 'book': return filteredBooks;
+      default: return filteredAll;
+    }
+  }, [activeTab, filteredMovies, filteredMusic, filteredBooks, filteredAll]);
+
   const featuredItem = movies.length > 0 ? movies[0] : (allContent.length > 0 ? allContent[0] : null);
+
+  const tabs: { key: CategoryTab; label: string; icon: any; count: number }[] = [
+    { key: 'all', label: 'All', icon: Flame, count: filteredAll.length },
+    { key: 'movie', label: 'Movies', icon: Film, count: filteredMovies.length },
+    { key: 'music', label: 'Music', icon: Music, count: filteredMusic.length },
+    { key: 'book', label: 'Books', icon: BookOpen, count: filteredBooks.length },
+  ];
 
   return (
     <div className="min-h-screen bg-[#141414] text-white selection:bg-[#E50914] selection:text-white">
@@ -87,6 +126,25 @@ export default function EthiopianPage() {
         .no-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .tab-active {
+          background: linear-gradient(135deg, #E50914 0%, #b80710 100%);
+          box-shadow: 0 8px 32px rgba(229, 9, 20, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+        }
+        .search-glow {
+          box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.4), 0 8px 32px rgba(229, 9, 20, 0.15);
+        }
+        .card-grid-item {
+          animation: fadeUp 0.5s ease forwards;
+          opacity: 0;
+        }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
       
@@ -99,15 +157,13 @@ export default function EthiopianPage() {
       ) : (
         <>
           {/* Cinematic Hero Section */}
-          <section className="relative h-[80vh] w-full flex items-end pb-16 md:pb-24 overflow-hidden">
-            {/* Widescreen cover backdrop */}
+          <section className="relative h-[70vh] w-full flex items-end pb-16 md:pb-24 overflow-hidden">
             <div 
               className="absolute inset-0 bg-cover bg-center transition-all duration-1000"
               style={{ 
                 backgroundImage: `url(${featuredItem?.cover_image || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=1920'})`
               }}
             >
-              {/* Cinematic vignetting linear overlay gradients */}
               <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/40 to-transparent" />
               <div className="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/30 to-transparent" />
               <div className="absolute inset-0 bg-black/30" />
@@ -115,7 +171,6 @@ export default function EthiopianPage() {
             
             <div className="container relative z-10 px-4 md:px-0">
               <div className="max-w-3xl animate-in fade-in slide-in-from-bottom-12 duration-1000">
-                {/* Horizontal flag & Badge */}
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex gap-0 w-12 h-7 rounded-md overflow-hidden border border-white/20 shadow-xl">
                     <span className="block h-full w-1/3 bg-[#22c55e]" />
@@ -127,21 +182,18 @@ export default function EthiopianPage() {
                   </Badge>
                 </div>
                 
-                {/* Featured Title */}
                 <h1 className="text-4xl md:text-7xl font-extrabold tracking-tighter text-white mb-4 uppercase italic leading-none drop-shadow-md">
                   {featuredItem ? (
-                    (lang === 'am' && (featuredItem.title_am || featuredItem.amharic_title)) ? 
-                    (featuredItem.title_am || featuredItem.amharic_title) : 
-                    (featuredItem.title || featuredItem.name || 'Untitled')
+                    (lang === 'am' && (featuredItem.title_am || (featuredItem as any).amharic_title)) ? 
+                    (featuredItem.title_am || (featuredItem as any).amharic_title) : 
+                    (featuredItem.title || 'Untitled')
                   ) : t('ethiopian_page.hero_title')}
                 </h1>
                 
-                {/* Description */}
                 <p className="text-sm md:text-lg text-gray-300/90 mb-6 line-clamp-3 md:line-clamp-4 leading-relaxed font-medium drop-shadow-sm max-w-2xl">
                   {featuredItem ? featuredItem.description : t('ethiopian_page.hero_desc')}
                 </p>
                 
-                {/* Quick actions */}
                 <div className="flex flex-wrap gap-4">
                   <Button 
                     className="bg-[#E50914] hover:bg-[#b80710] text-white font-bold px-8 py-6 rounded-md flex items-center gap-2.5 text-lg transition-all duration-300 active:scale-95 shadow-xl shadow-[#E50914]/20"
@@ -158,52 +210,172 @@ export default function EthiopianPage() {
                     variant="outline"
                     className="bg-white/10 hover:bg-white/20 text-white border-none font-bold px-8 py-6 rounded-md flex items-center gap-2.5 text-lg backdrop-blur-md transition-all duration-300 active:scale-95"
                     onClick={() => {
-                      const target = document.getElementById('about-section');
+                      const target = document.getElementById('content-section');
                       if (target) target.scrollIntoView({ behavior: 'smooth' });
                     }}
                   >
                     <Info className="h-6 w-6" />
-                    More Info
+                    Browse Collection
                   </Button>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Cinematic Sliders Container */}
-          <main className="container relative z-20 py-8 space-y-12">
+          {/* ===== SEARCH + CATEGORY TABS + GRID ===== */}
+          <main id="content-section" className="container relative z-20 py-8 scroll-mt-20">
             
-            {/* Row 1: Featured & Trending */}
-            <HorizontalRail 
-              title="🔥 Trending In Ethiopia" 
-              items={allContent.slice(0, 15)} 
-              icon={Flame} 
-            />
+            {/* Search Bar */}
+            <div className="mb-8">
+              <div className={`relative max-w-2xl mx-auto transition-all duration-500 ${isSearchFocused ? 'scale-[1.02]' : ''}`}>
+                <div className={`relative flex items-center rounded-2xl border transition-all duration-300 ${
+                  isSearchFocused 
+                    ? 'bg-white/10 border-[#E50914]/50 search-glow' 
+                    : 'bg-white/5 border-white/10 hover:border-white/20'
+                }`}>
+                  <Search className={`absolute left-4 h-5 w-5 transition-colors duration-300 ${isSearchFocused ? 'text-[#E50914]' : 'text-gray-400'}`} />
+                  <input
+                    id="ethiopian-search"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setIsSearchFocused(false)}
+                    placeholder="Search Ethiopian movies, music, books..."
+                    className="w-full bg-transparent text-white placeholder:text-gray-500 py-4 pl-12 pr-12 rounded-2xl outline-none text-base font-medium"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-4 p-1 rounded-full hover:bg-white/10 transition-colors"
+                    >
+                      <X className="h-4 w-4 text-gray-400 hover:text-white" />
+                    </button>
+                  )}
+                </div>
+                {searchQuery && (
+                  <p className="text-xs text-gray-500 mt-2 text-center font-medium">
+                    Found <span className="text-[#E50914] font-bold">{currentItems.length}</span> results for &ldquo;{searchQuery}&rdquo;
+                  </p>
+                )}
+              </div>
+            </div>
 
-            {/* Row 2: Movies */}
-            <HorizontalRail 
-              title="🎬 Ethiopian Cinematic Masterpieces" 
-              items={movies} 
-              icon={Film} 
-            />
+            {/* Category Tabs */}
+            <div className="mb-10">
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.key;
+                  const TabIcon = tab.icon;
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`
+                        group relative flex items-center gap-2.5 px-6 py-3.5 rounded-2xl font-bold text-sm uppercase tracking-wider
+                        transition-all duration-500 ease-out
+                        ${isActive 
+                          ? 'tab-active text-white scale-[1.03]' 
+                          : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/5 hover:border-white/15'
+                        }
+                      `}
+                    >
+                      <TabIcon className={`h-4.5 w-4.5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                      <span>{tab.label}</span>
+                      <span className={`
+                        inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-[10px] font-black
+                        transition-all duration-300
+                        ${isActive 
+                          ? 'bg-white/25 text-white' 
+                          : 'bg-white/5 text-gray-500 group-hover:bg-white/10 group-hover:text-gray-300'
+                        }
+                      `}>
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-            {/* Row 3: Music */}
-            <HorizontalRail 
-              title="🎵 Classical & Modern Melodies" 
-              items={music} 
-              icon={Music} 
-            />
+            {/* Content Display - different layout per tab */}
+            {activeTab === 'all' ? (
+              /* ALL tab: show horizontal rails */
+              <div className="space-y-12">
+                <HorizontalRail 
+                  title="🔥 Trending In Ethiopia" 
+                  items={filteredAll.slice(0, 15)} 
+                  icon={Flame} 
+                />
+                {filteredMovies.length > 0 && (
+                  <HorizontalRail 
+                    title="🎬 Ethiopian Movies" 
+                    items={filteredMovies} 
+                    icon={Film}
+                    onSeeAll={() => setActiveTab('movie')}
+                  />
+                )}
+                {filteredMusic.length > 0 && (
+                  <HorizontalRail 
+                    title="🎵 Ethiopian Music" 
+                    items={filteredMusic} 
+                    icon={Music}
+                    onSeeAll={() => setActiveTab('music')}
+                  />
+                )}
+                {filteredBooks.length > 0 && (
+                  <HorizontalRail 
+                    title="📚 Ethiopian Literature" 
+                    items={filteredBooks} 
+                    icon={BookOpen}
+                    onSeeAll={() => setActiveTab('book')}
+                  />
+                )}
+              </div>
+            ) : (
+              /* Category tab: show full grid */
+              <div>
+                {/* Category Header */}
+                <div className="flex items-center gap-3 mb-8">
+                  {activeTab === 'movie' && <Film className="h-7 w-7 text-[#E50914]" />}
+                  {activeTab === 'music' && <Music className="h-7 w-7 text-[#E50914]" />}
+                  {activeTab === 'book' && <BookOpen className="h-7 w-7 text-[#E50914]" />}
+                  <h2 className="text-2xl md:text-3xl font-black uppercase italic text-white tracking-tight">
+                    {activeTab === 'movie' && 'Ethiopian Cinematic Masterpieces'}
+                    {activeTab === 'music' && 'Classical & Modern Ethiopian Melodies'}
+                    {activeTab === 'book' && 'Inspiring Ethiopian Literature'}
+                  </h2>
+                </div>
 
-            {/* Row 4: Books */}
-            <HorizontalRail 
-              title="📚 Inspiring Amharic Literature" 
-              items={books} 
-              icon={BookOpen} 
-            />
+                {currentItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="rounded-full bg-white/5 p-6 mb-4">
+                      <Search className="h-10 w-10 text-gray-500" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-300 mb-2">No results found</h3>
+                    <p className="text-gray-500 text-sm max-w-md">
+                      No Ethiopian {activeTab === 'movie' ? 'movies' : activeTab === 'music' ? 'music' : 'books'} match your search. Try different keywords.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                    {currentItems.map((item, idx) => (
+                      <div 
+                        key={item.id} 
+                        className="card-grid-item"
+                        style={{ animationDelay: `${Math.min(idx * 60, 600)}ms` }}
+                      >
+                        <ItemCard item={item} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* Music Modes / Genres Grid */}
-            {ethiopianGenres.length > 0 && (
-              <section className="pt-8">
+            {/* Music Modes / Genres Grid - only show on all or music tab */}
+            {(activeTab === 'all' || activeTab === 'music') && ethiopianGenres.length > 0 && (
+              <section className="pt-12">
                 <div className="flex items-center gap-2 mb-6">
                   <Music className="h-6 w-6 text-[#E50914]" />
                   <h2 className="text-2xl font-black uppercase italic text-white tracking-tight">
@@ -281,14 +453,14 @@ interface RailProps {
   title: string;
   items: Item[];
   icon: any;
+  onSeeAll?: () => void;
 }
 
-function HorizontalRail({ title, items, icon: Icon }: RailProps) {
+function HorizontalRail({ title, items, icon: Icon, onSeeAll }: RailProps) {
   if (items.length === 0) return null;
   
   return (
     <div className="relative group">
-      {/* Heading row with simple View All trigger */}
       <div className="flex items-center justify-between mb-4 px-4 md:px-0">
         <div className="flex items-center gap-2">
           <Icon className="h-5 w-5 text-[#E50914]" />
@@ -296,12 +468,16 @@ function HorizontalRail({ title, items, icon: Icon }: RailProps) {
             {title}
           </h2>
         </div>
-        <span className="text-xs font-bold text-[#E50914] hover:text-[#E50914]/80 flex items-center gap-0.5 cursor-pointer uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          See All <ChevronRight className="h-3.5 w-3.5" />
-        </span>
+        {onSeeAll && (
+          <button 
+            onClick={onSeeAll}
+            className="text-xs font-bold text-[#E50914] hover:text-[#E50914]/80 flex items-center gap-0.5 cursor-pointer uppercase tracking-widest transition-opacity duration-300"
+          >
+            See All <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
       
-      {/* Slider view container */}
       <div className="relative">
         <div className="flex gap-4 overflow-x-auto pb-4 pt-2 px-4 md:px-0 no-scrollbar scroll-smooth snap-x">
           {items.map((item) => (

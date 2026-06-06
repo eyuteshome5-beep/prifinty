@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useRef } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/navbar';
 import { ItemCard } from '@/components/item-card';
@@ -36,7 +36,12 @@ import {
   ExternalLink as ExternalLinkIcon,
   Loader2,
   ArrowLeft,
-  Send
+  Send,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  ThumbsDown
    } from 'lucide-react';
    import { Copy } from 'lucide-react';
 import { toast } from 'sonner';
@@ -65,8 +70,152 @@ export default function ItemDetailPage({ params }: PageProps) {
   const [userRating, setUserRating] = useState(0);
   const [review, setReview] = useState('');
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [isNotInterested, setIsNotInterested] = useState(false);
   const [lastfmUrl, setLastfmUrl] = useState<string | null>(null);
   const [externalLinks, setExternalLinks] = useState<ExternalLink[]>([]);
+
+  // Music Player State
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(0.8);
+  const [isMuted, setIsMuted] = useState(false);
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+
+  const playlist = [
+    {
+      title: "Tizita (Acoustic Masinko)",
+      artist: "Traditional Instrumental",
+      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    },
+    {
+      title: "Bati (Krar Improvisation)",
+      artist: "Ethiopian Folk Ensemble",
+      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+    },
+    {
+      title: "Ambassel (Washint Flute)",
+      artist: "Traditional Winds",
+      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
+    }
+  ];
+
+  const playPromiseRef = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    if (item?.item_type === 'music') {
+      const newAudio = new Audio(playlist[currentTrackIndex].url);
+      setAudio(newAudio);
+      newAudio.volume = isMuted ? 0 : volume;
+
+      const updateTime = () => {
+        if (newAudio.currentTime >= 20) {
+          newAudio.pause();
+          newAudio.currentTime = 0;
+          setCurrentTime(0);
+          setIsPlaying(false);
+          toast.success("20-second premium preview completed! Unlock full streaming with credits.");
+        } else {
+          setCurrentTime(newAudio.currentTime);
+        }
+      };
+      
+      const updateDuration = () => {
+        setDuration(20); // Fixed 20-second preview duration for perfect streaming snippet
+      };
+      
+      const handleEnded = () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      };
+
+      newAudio.addEventListener('timeupdate', updateTime);
+      newAudio.addEventListener('loadedmetadata', updateDuration);
+      newAudio.addEventListener('ended', handleEnded);
+
+      return () => {
+        try {
+          newAudio.pause();
+        } catch (e) {}
+        newAudio.removeEventListener('timeupdate', updateTime);
+        newAudio.removeEventListener('loadedmetadata', updateDuration);
+        newAudio.removeEventListener('ended', handleEnded);
+      };
+    }
+  }, [item, currentTrackIndex]);
+
+  const togglePlay = () => {
+    if (!audio) return;
+    
+    if (isPlaying) {
+      // If a play Promise is currently resolving, wait for it before calling pause()
+      if (playPromiseRef.current) {
+        playPromiseRef.current
+          .then(() => {
+            audio.pause();
+            setIsPlaying(false);
+          })
+          .catch(() => {
+            audio.pause();
+            setIsPlaying(false);
+          });
+      } else {
+        audio.pause();
+        setIsPlaying(false);
+      }
+    } else {
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromiseRef.current = playPromise;
+        setIsPlaying(true);
+        
+        playPromise
+          .then(() => {
+            playPromiseRef.current = null;
+          })
+          .catch((err) => {
+            playPromiseRef.current = null;
+            setIsPlaying(false);
+            
+            // Suppress the warning message for standard user-initiated aborts
+            if (err.name !== 'AbortError') {
+              console.error("Audio play failed:", err);
+            } else {
+              console.log("Audio play request safely interrupted (user paused/switched tracks).");
+            }
+          });
+      }
+    }
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    if (audio) {
+      audio.volume = newVolume;
+    }
+    setIsMuted(newVolume === 0);
+  };
+
+  const toggleMute = () => {
+    if (!audio) return;
+    if (isMuted) {
+      audio.volume = volume;
+      setIsMuted(false);
+    } else {
+      audio.volume = 0;
+      setIsMuted(true);
+    }
+  };
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   useEffect(() => {
     fetchItemData();
@@ -105,7 +254,9 @@ export default function ItemDetailPage({ params }: PageProps) {
         setTimeout(() => fetchItemData(true), 1500);
         return;
       }
-      console.error('Failed to fetch item:', error);
+      if (!error.message?.includes('Authentication required') && !error.message?.includes('401')) {
+        console.error('Failed to fetch item:', error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -178,6 +329,27 @@ export default function ItemDetailPage({ params }: PageProps) {
       // On error, we could restore the values if needed
     } finally {
       setIsSubmittingRating(false);
+    }
+  };
+
+  const handleNotInterested = async () => {
+    if (!isAuthenticated) {
+      toast.error("Please login to provide feedback");
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    try {
+      await recommendationsAPI.provideFeedback(parseInt(id), 'not_helpful');
+      setIsNotInterested(true);
+      toast.success("Feedback saved. We won't recommend this to you again!");
+      setTimeout(() => {
+        window.location.href = '/browse';
+      }, 1500);
+    } catch (error) {
+      toast.error('Failed to submit feedback');
+    } finally {
+      setIsSubmittingFeedback(false);
     }
   };
 
@@ -316,24 +488,184 @@ export default function ItemDetailPage({ params }: PageProps) {
 
             {/* Detailed Description & Analysis */}
             <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-700 delay-150">
-              <div>
-                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-primary" />
+              <Card className="bg-white/5 backdrop-blur-md border border-white/5 shadow-2xl p-6 overflow-hidden rounded-[24px]">
+                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-primary">
+                  <Activity className="h-5 w-5" />
                   {t('item_page.description')}
                 </h2>
                 <div className="prose prose-invert max-w-none">
-                  <p className="text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap italic">
+                  <p className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap">
                     {lang === 'am' && item.description_am ? item.description_am : item.description}
                   </p>
                 </div>
-              </div>
+              </Card>
+
+              {/* Music Streaming Player Card */}
+              {item.item_type === 'music' && (
+                <Card className="bg-gradient-to-br from-violet-950/40 via-background to-purple-950/40 backdrop-blur-md border border-purple-500/20 shadow-2xl p-6 rounded-[24px] overflow-hidden relative group">
+                  <style dangerouslySetInnerHTML={{__html: `
+                    @keyframes bar-bounce {
+                      0% { transform: scaleY(0.15); }
+                      100% { transform: scaleY(1); }
+                    }
+                    .bar-animated {
+                      animation: bar-bounce 0.6s ease-in-out infinite alternate;
+                      transform-origin: bottom;
+                    }
+                    @keyframes spin-record {
+                      from { transform: rotate(0deg); }
+                      to { transform: rotate(360deg); }
+                    }
+                    .animate-spin-record {
+                      animation: spin-record 12s linear infinite;
+                    }
+                  `}} />
+                  
+                  {/* Visual Glow */}
+                  <div className="absolute -top-12 -right-12 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all duration-700" />
+                  
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-purple-400">
+                    <Music className="h-5 w-5 animate-pulse" />
+                    Live Audio Streaming Preview
+                  </h3>
+
+                  <div className="flex flex-col md:flex-row items-center gap-6">
+                    {/* Spinning Vinyl Record Visual */}
+                    <div className="relative w-32 h-32 flex-shrink-0">
+                      <div className="absolute inset-0 bg-black rounded-full border-4 border-white/10 shadow-2xl flex items-center justify-center overflow-hidden">
+                        {item.cover_image ? (
+                          <img
+                            src={item.cover_image}
+                            alt=""
+                            className={`w-full h-full object-cover rounded-full select-none`}
+                            style={{
+                              animation: isPlaying ? 'spin-record 12s linear infinite' : 'none',
+                            }}
+                          />
+                        ) : (
+                          <Music className="w-12 h-12 text-purple-500/50" />
+                        )}
+                        {/* Center Hole */}
+                        <div className="absolute w-6 h-6 bg-background rounded-full border-2 border-white/10 flex items-center justify-center">
+                          <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Player Controls */}
+                    <div className="flex-1 w-full space-y-4">
+                      <div>
+                        <h4 className="text-xl font-bold text-white tracking-tight truncate">
+                          {playlist[currentTrackIndex].title}
+                        </h4>
+                        <p className="text-sm text-purple-300 font-medium truncate">
+                          {playlist[currentTrackIndex].artist}
+                        </p>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground font-mono">
+                          <span>{formatTime(currentTime)}</span>
+                          <span>{formatTime(duration)}</span>
+                        </div>
+                        <div 
+                          className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden cursor-pointer relative"
+                          onClick={(e) => {
+                            if (!audio) return;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const percent = (e.clientX - rect.left) / rect.width;
+                            audio.currentTime = percent * duration;
+                            setCurrentTime(audio.currentTime);
+                          }}
+                        >
+                          <div 
+                            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.5)] transition-all duration-100"
+                            style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Controls Row */}
+                      <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+                        <div className="flex items-center gap-3">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={togglePlay}
+                            className="h-12 w-12 rounded-full bg-purple-500/10 hover:bg-purple-500 hover:text-white border border-purple-500/20 text-purple-400 transition-all flex items-center justify-center shadow-lg"
+                          >
+                            {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
+                          </Button>
+                          
+                          {/* Track Selection Tabs */}
+                          <div className="flex gap-1.5 bg-black/20 p-1 rounded-lg border border-white/5">
+                            {playlist.map((t, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  setCurrentTrackIndex(idx);
+                                  setIsPlaying(false);
+                                  setCurrentTime(0);
+                                }}
+                                className={`text-[10px] font-bold px-2 py-1 rounded transition-colors ${
+                                  currentTrackIndex === idx
+                                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                    : 'text-muted-foreground hover:text-white'
+                                }`}
+                              >
+                                Track {idx + 1}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Volume & Visualizer */}
+                        <div className="flex items-center gap-4 flex-1 md:flex-initial md:ml-auto">
+                          {/* Audio Wave Visualizer */}
+                          <div className="flex items-end gap-0.5 h-8 px-2 overflow-hidden">
+                            {Array.from({ length: 8 }).map((_, i) => (
+                              <div
+                                key={i}
+                                className={`w-[3px] bg-purple-400 rounded-full ${isPlaying ? 'bar-animated' : ''}`}
+                                style={{
+                                  height: isPlaying ? '100%' : '15%',
+                                  animationDelay: `${i * 0.08}s`,
+                                  opacity: isPlaying ? 0.8 : 0.3,
+                                  boxShadow: isPlaying ? '0 0 6px rgba(168,85,247,0.4)' : 'none'
+                                }}
+                              />
+                            ))}
+                          </div>
+
+                          {/* Volume controls */}
+                          <div className="flex items-center gap-2">
+                            <button onClick={toggleMute} className="text-muted-foreground hover:text-purple-400 transition-colors">
+                              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                            </button>
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              value={isMuted ? 0 : volume}
+                              onChange={handleVolumeChange}
+                              className="w-16 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               {/* Video Trailer / Preview Section */}
-              {externalLinks.some(l => l.url.includes('youtube.com') || l.url.includes('youtu.be')) && (
+              {item.item_type !== 'movie' && externalLinks.some(l => l.url.includes('youtube.com') || l.url.includes('youtu.be')) && (
                 <div className="space-y-4">
                   <h2 className="text-xl font-bold flex items-center gap-2">
                     <Film className="h-5 w-5 text-rose-500" />
-                    {item.item_type === 'movie' ? 'Official Trailer' : 'Video Preview'}
+                    Video Preview
                   </h2>
                   <div className="aspect-video w-full overflow-hidden rounded-[24px] border border-white/10 bg-black/40 shadow-2xl">
                     {(() => {
@@ -547,46 +879,34 @@ export default function ItemDetailPage({ params }: PageProps) {
                   onChange={(e) => setReview(e.target.value)}
                   rows={3}
                 />
-                <Button onClick={handleRatingSubmit} disabled={isSubmittingRating}>
-                  {isSubmittingRating ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-2 h-4 w-4" />
-                  )}
-                  {t('item_page.submit_rating')}
-                </Button>
+                <div className="flex flex-wrap gap-3">
+                  <Button onClick={handleRatingSubmit} disabled={isSubmittingRating}>
+                    {isSubmittingRating ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    {t('item_page.submit_rating')}
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    onClick={handleNotInterested} 
+                    disabled={isSubmittingFeedback || isNotInterested}
+                    className="border-rose-500/30 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition-all rounded-xl"
+                  >
+                    {isSubmittingFeedback ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <ThumbsDown className="mr-2 h-4 w-4" />
+                    )}
+                    {isNotInterested ? "Not Interested Marked" : "Not Interested"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
-            {/* User Reviews */}
-            {ratings.length > 0 && (
-              <Card className="bg-white/5 backdrop-blur-md border-white/5 shadow-2xl overflow-hidden">
-                <CardHeader>
-                  <CardTitle className="text-lg">{t('item_page.user_reviews')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {ratings.map((rating, index) => (
-                      <div key={index}>
-                        {index > 0 && <Separator className="my-4" />}
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-medium">{rating.username}</p>
-                            <StarRating rating={rating.rating} size="sm" />
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(rating.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        {rating.review && (
-                          <p className="mt-2 text-sm text-muted-foreground">{rating.review}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+
           </div>
         </div>
 

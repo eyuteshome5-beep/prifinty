@@ -9,7 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; bonus?: { amount: number; message: string } }>;
-  register: (username: string, email: string, password: string) => Promise<{ success: boolean }>;
+  register: (username: string, email: string, password: string, preferred_genres: string[], favorite_media_types: string[], favorite_countries: string[], favorite_authors: string[], favorite_book_types: string[], favorite_artists: string[], favorite_decades: string[], favorite_music_genres: string[]) => Promise<{ success: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateCredits: (newCredits: number) => void;
@@ -47,6 +47,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshUser();
+
+    const handleUnauthorized = () => {
+      setUser(null);
+      setPreferences(null);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('prefinity:unauthorized', handleUnauthorized);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('prefinity:unauthorized', handleUnauthorized);
+      }
+    };
   }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
@@ -65,9 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (username: string, email: string, password: string) => {
+  const register = async (username: string, email: string, password: string, preferred_genres: string[], favorite_media_types: string[], favorite_countries: string[], favorite_authors: string[], favorite_book_types: string[], favorite_artists: string[], favorite_decades: string[], favorite_music_genres: string[]) => {
     try {
-      const response = await authAPI.register(username, email, password);
+      const response = await authAPI.register(username, email, password, preferred_genres, favorite_media_types, favorite_countries, favorite_authors, favorite_book_types, favorite_artists, favorite_decades, favorite_music_genres);
       setAuthToken(response.token);
       setUser(response.user);
       await refreshUser();

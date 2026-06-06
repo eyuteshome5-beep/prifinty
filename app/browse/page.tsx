@@ -147,8 +147,10 @@ function BrowseContent() {
     try {
       const data = await usersAPI.getWishlist();
       setWishlistIds(new Set(data.wishlist.map((item) => item.id)));
-    } catch (error) {
-      console.error('Failed to fetch wishlist:', error);
+    } catch (error: any) {
+      if (!error.message?.includes('Authentication required') && !error.message?.includes('401')) {
+        console.error('Failed to fetch wishlist:', error);
+      }
     }
   };
 

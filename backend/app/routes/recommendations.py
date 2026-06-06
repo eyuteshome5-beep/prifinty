@@ -106,16 +106,14 @@ def get_recommendations():
     )
     ratings_count = ratings_count_dict['total'] if ratings_count_dict else 0
     
-    if g.current_user.get('role') != 'admin' and ratings_count < 5:
-        return jsonify({
-            'error': f'Please rate at least 5 items first to unlock personalized recommendations. You have currently rated {ratings_count} item(s).',
-            'ratings_count': ratings_count,
-            'requires_ratings': 5
-        }), 400
-        
     item_type = request.args.get('type')  # book, movie, music, or None for all
     limit = min(int(request.args.get('limit', 20)), 50)
-    algorithm = request.args.get('algorithm', 'hybrid')  # collaborative, content, hybrid
+    
+    # If the user has fewer than 5 ratings, force them into the survey-based recommendation track
+    if ratings_count < 5:
+        algorithm = 'survey_based'
+    else:
+        algorithm = request.args.get('algorithm', 'hybrid')  # collaborative, content, hybrid
     
     # Get user preferences early (used for caching key and for boost)
     preferences = execute_query(
@@ -152,8 +150,9 @@ def get_recommendations():
                 raise
 
     # Fast personalized heuristic for quick responses (no heavy ML libraries)
+    # SKIP this for survey_based — new users must go through the strict survey path
     try:
-        if engine:
+        if engine and algorithm != 'survey_based':
             fast_recs = engine.fast_personalized_recommendations(user_id, item_type, limit)
             if fast_recs:
                 recommendations = fast_recs
@@ -195,6 +194,8 @@ def get_recommendations():
                     recommendations = run_with_timeout(lambda: engine.content_based_filtering(user_id, item_type, limit))
                 elif algorithm == 'cross_domain':
                     recommendations = run_with_timeout(lambda: engine.cross_domain_recommendations(user_id, limit))
+                elif algorithm == 'survey_based':
+                    recommendations = run_with_timeout(lambda: engine.survey_based_recommendations(user_id, item_type, limit))
                 else:  # hybrid (default)
                     recommendations = run_with_timeout(lambda: engine.hybrid_recommendations(user_id, item_type, limit, ethiopian_boost))
     except Exception as e:
@@ -260,7 +261,9 @@ def get_recommendations():
         fetch_all=False
     )
     
-    recommendations = sort_ethiopian_first(recommendations)
+    # Only sort Ethiopian first for non-survey algorithms. For survey_based, preserve the strict match order.
+    if algorithm != 'survey_based':
+        recommendations = sort_ethiopian_first(recommendations)
     
     response = {
         'recommendations': recommendations,

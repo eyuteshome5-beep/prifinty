@@ -18,11 +18,11 @@ def register():
     """Register a new user"""
     data = request.get_json()
     
-    # Validate required fields
-    required_fields = ['username', 'email', 'password']
+    # Validate required fields including onboarding survey
+    required_fields = ['username', 'email', 'password', 'preferred_genres', 'favorite_media_types']
     for field in required_fields:
         if not data.get(field):
-            return jsonify({'error': f'{field} is required'}), 400
+            return jsonify({'error': f'{field} is required for registration and onboarding'}), 400
     
     username = data['username'].strip()
     email = data['email'].strip().lower()
@@ -58,11 +58,23 @@ def register():
             fetch_all=False
         )
         
-        # Create default preferences
+        import json
+        preferred_genres = json.dumps(data.get('preferred_genres', []))
+        favorite_media_types = json.dumps(data.get('favorite_media_types', []))
+        favorite_countries = json.dumps(data.get('favorite_countries', []))
+        ethiopian_pref = bool(data.get('ethiopian_content_preference', False))
+        
+        favorite_authors = json.dumps(data.get('favorite_authors', []))
+        favorite_book_types = json.dumps(data.get('favorite_book_types', []))
+        favorite_artists = json.dumps(data.get('favorite_artists', []))
+        favorite_decades = json.dumps(data.get('favorite_decades', []))
+        favorite_music_genres = json.dumps(data.get('favorite_music_genres', []))
+        
+        # Create detailed preferences from onboarding survey
         execute_query(
-            """INSERT INTO preferences (user_id, preferred_genres, preferred_languages, ethiopian_content_preference)
-               VALUES (%s, %s, %s, %s)""",
-            (user_id, '[]', '["English", "Amharic"]', False),
+            """INSERT INTO preferences (user_id, preferred_genres, preferred_languages, ethiopian_content_preference, favorite_media_types, favorite_countries, favorite_authors, favorite_book_types, favorite_artists, favorite_decades, favorite_music_genres)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (user_id, preferred_genres, '["English", "Amharic"]', ethiopian_pref, favorite_media_types, favorite_countries, favorite_authors, favorite_book_types, favorite_artists, favorite_decades, favorite_music_genres),
             fetch_all=False
         )
         

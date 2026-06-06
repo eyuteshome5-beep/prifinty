@@ -118,17 +118,7 @@ export default function DashboardPage() {
         }
       }
 
-      // Prepend Ethiopian-focused recommendations when available
-      try {
-        const eth = await recommendationsAPI.getEthiopianRecommendations(undefined, 4);
-        const ethRecs = eth.recommendations || [];
-        const ethIds = new Set(ethRecs.map((r) => r.id));
-        const merged = [...ethRecs, ...baseRecs.filter((r) => !ethIds.has(r.id))].slice(0, 8);
-        setRecommendations(merged);
-      } catch (e) {
-        // If Ethiopian endpoint fails, fall back to base recommendations
-        setRecommendations(baseRecs);
-      }
+      setRecommendations(baseRecs);
 
       // Trending
       if (results[1].status === 'fulfilled') {
@@ -176,16 +166,7 @@ export default function DashboardPage() {
         algorithm: 'hybrid',
       });
 
-      // Try to fetch Ethiopian-first recommendations and merge
-      try {
-        const eth = await recommendationsAPI.getEthiopianRecommendations(type, 4);
-        const ethRecs = eth.recommendations || [];
-        const ethIds = new Set(ethRecs.map((r) => r.id));
-        const merged = [...ethRecs, ...(data.recommendations || []).filter((r) => !ethIds.has(r.id))].slice(0, 8);
-        setRecommendations(merged);
-      } catch (e) {
-        setRecommendations(data.recommendations || []);
-      }
+      setRecommendations(data.recommendations || []);
       // Refresh user to sync credits deducted by server
       try {
         await refreshUser();

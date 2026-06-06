@@ -60,7 +60,8 @@ def create_app(config_name='default'):
         try:
             from app.utils.database import Database
             db = Database.get_connection()
-            db.command('ping')
+            db.ping(reconnect=True)
+            db.close()
             db_status = "Connected"
             db_error = None
         except Exception as e:

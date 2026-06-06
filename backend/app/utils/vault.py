@@ -35,22 +35,14 @@ class SecretVault:
                 else:
                     print(f"[Security Alert] '{key}' is unconfigured or using template default value. (Non-critical in {env_mode} mode)")
                     
-        # Check MongoDB URI safety
-        mongo_uri = app.config.get('MONGO_URI') or os.environ.get('MONGO_URI')
-        if mongo_uri:
-            if 'localhost' in mongo_uri and is_prod:
-                print("[SECURITY CRITICAL] Local database URI configured in production environment!", file=sys.stderr)
-                critical_vulnerabilities.append('MONGO_URI')
-            else:
-                # Mask credentials in console outputs for privacy
-                masked_uri = mongo_uri
-                if '@' in mongo_uri:
-                    parts = mongo_uri.split('@')
-                    prefix_parts = parts[0].split('://')
-                    if len(prefix_parts) > 1:
-                        scheme = prefix_parts[0]
-                        masked_uri = f"{scheme}://****:****@{parts[1]}"
-                print(f"[OK] Database connection string verified: {masked_uri}")
+        # Check MySQL connection safety
+        mysql_host = app.config.get('MYSQL_HOST') or os.environ.get('MYSQL_HOST', 'localhost')
+        mysql_db = app.config.get('MYSQL_DB') or os.environ.get('MYSQL_DB', 'ethiopian_recommendations')
+        mysql_user = app.config.get('MYSQL_USER') or os.environ.get('MYSQL_USER', 'root')
+        if mysql_host and is_prod and mysql_host == 'localhost':
+            print("[SECURITY WARNING] MySQL is configured to localhost in production — ensure it's properly secured.", file=sys.stderr)
+        else:
+            print(f"[OK] Database connection string verified: mysql://{mysql_user}:****@{mysql_host}/{mysql_db}")
                 
         if critical_vulnerabilities:
             print(f"[CRITICAL ALERT] Found {len(critical_vulnerabilities)} high-risk credentials exposed! Fix immediately.", file=sys.stderr)

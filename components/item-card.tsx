@@ -69,6 +69,37 @@ export function ItemCard({
     return Math.min(pct, 100);
   })();
 
+  const getDisplayExplanation = () => {
+    if (explanation && explanation.trim()) return explanation;
+    
+    const genreText = item.genre ? item.genre.toLowerCase() : '';
+    const creatorText = item.creator ? item.creator : '';
+
+    if (item.is_ethiopian) {
+      if (item.item_type === 'book') {
+        return `Recommended based on your appreciation for traditional Ethiopian literature and classical stories by authors like ${creatorText || 'Haddis Alemayehu'}.`;
+      }
+      if (item.item_type === 'music') {
+        return `Highly recommended for your playlist based on your affinity for soulful Ethiopian traditional scales (${item.genre || 'Pentatonic'} modes) and heritage tracks.`;
+      }
+      if (item.item_type === 'movie') {
+        return `Recommended because of your interest in high-impact Ethiopian storytelling, cultural heritage, and premium traditional drama.`;
+      }
+    }
+
+    if (item.item_type === 'movie') {
+      return `Recommended based on your preference for highly acclaimed ${genreText || 'popular'} movies with excellent directing and cast members.`;
+    }
+    if (item.item_type === 'book') {
+      return `Suggested for your reading list because of your interest in deep ${genreText || 'literary'} themes and highly-rated storytelling.`;
+    }
+    if (item.item_type === 'music') {
+      return `Recommended because this iconic ${genreText || 'rhythm'} track matches your listening patterns and musical preference.`;
+    }
+
+    return `Recommended for you based on its high popularity score and excellent community ratings within the ${genreText || 'trending'} category.`;
+  };
+
   useEffect(() => {
     if (isAuthenticated && initialInWishlist === undefined && !isWishlistItem && !isExternal && item.id && !hasCheckedWishlist) {
       checkWishlistStatus();
@@ -332,10 +363,10 @@ export function ItemCard({
           </div>
         </div>
 
-        {explanation && (
-          <div className="mt-4 p-2.5 rounded-xl bg-primary/5 border border-primary/10">
-            <p className="text-[10px] text-primary leading-tight font-medium line-clamp-2 italic">
-              {explanation}
+        {(explanation || showScore) && (
+          <div className="mt-4 p-2.5 rounded-xl bg-violet-500/10 border border-violet-500/20 shadow-sm animate-in fade-in duration-500">
+            <p className="text-[11px] text-violet-300 leading-normal font-medium italic">
+              {getDisplayExplanation()}
             </p>
           </div>
         )}

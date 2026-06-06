@@ -334,6 +334,19 @@ class RecommendationEngine:
         if item_type:
             query += " AND i.item_type = %s"
             params.append(item_type)
+        elif user_id:
+            # If no specific type is requested but we have a user_id, restrict to their preferred media types
+            prefs = execute_query("SELECT favorite_media_types FROM preferences WHERE user_id = %s", (user_id,), fetch_one=True)
+            if prefs:
+                try:
+                    import json
+                    media_types = json.loads(prefs.get('favorite_media_types') or '[]')
+                    if media_types:
+                        placeholders = ','.join(['%s'] * len(media_types))
+                        query += f" AND i.item_type IN ({placeholders})"
+                        params.extend(media_types)
+                except Exception:
+                    pass
             
         if user_id:
             query += " AND i.id NOT IN (SELECT item_id FROM ratings WHERE user_id = %s)"
@@ -423,6 +436,264 @@ class RecommendationEngine:
 
         unique.sort(key=lambda x: x.get('score', 0), reverse=True)
         return unique[:limit]
+
+    def _sync_external_items(self, item_type, search_query):
+        """
+        Queries external API via MediaAPIService and syncs matching items to DB on the fly.
+        """
+        try:
+            from app.services.media_api import MediaAPIService
+            results = MediaAPIService.search(item_type, search_query)
+            if not results:
+                return
+            
+            for data in results:
+                ext_id = data.get('external_id')
+                if not ext_id:
+                    continue
+                # Check if exists
+                item = execute_query("SELECT id FROM items WHERE external_id = %s", (ext_id,), fetch_one=True)
+                if item:
+                    continue # Already synced
+                
+                # Insert item
+                item_id = execute_query(
+                    """INSERT INTO items (title, description, genre, item_type, cover_image, popularity_score, external_id)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                    (data['title'], data.get('description', ''), data.get('genre', 'Other'), 
+                     item_type, data.get('cover_image'), data.get('popularity', 0), ext_id),
+                    fetch_all=False
+                )
+                
+                year = None
+                if data.get('release_year'):
+                    try: year = int(str(data['release_year'])[:4])
+                    except: pass
+                
+                # Type-specific insertion
+                if item_type == 'movie':
+                    execute_query(
+                        "INSERT INTO movies (item_id, director, release_year) VALUES (%s, %s, %s)",
+                        (item_id, data.get('creator', 'Director'), year),
+                        fetch_all=False
+                    )
+                elif item_type == 'book':
+                    execute_query(
+                        "INSERT INTO books (item_id, author, publication_year) VALUES (%s, %s, %s)",
+                        (item_id, data.get('creator', 'Author'), year),
+                        fetch_all=False
+                    )
+                elif item_type == 'music':
+                    execute_query(
+                        "INSERT INTO music (item_id, artist, ethiopian_genre) VALUES (%s, %s, 'Other')",
+                        (item_id, data.get('creator', 'Artist')),
+                        fetch_all=False
+                    )
+        except Exception as e:
+            print(f"Error syncing external items for {item_type} search '{search_query}': {e}")
+    
+    def survey_based_recommendations(self, user_id, item_type=None, limit=20):
+        """
+        Complex cold-start recommendations generated strictly from the mandatory
+        onboarding survey preferences, perfectly separated by media type.
+        """
+        import json
+        
+        # Get complex preferences
+        prefs = execute_query("SELECT * FROM preferences WHERE user_id = %s", (user_id,), fetch_one=True)
+        if not prefs:
+            return self.cold_start_recommendations(item_type, limit, user_id)
+            
+        try: movie_genres = json.loads(prefs.get('preferred_genres') or '[]')
+        except: movie_genres = []
+            
+        try: media_types = json.loads(prefs.get('favorite_media_types') or '[]')
+        except: media_types = []
+            
+        try: movie_countries = json.loads(prefs.get('favorite_countries') or '[]')
+        except: movie_countries = []
+            
+        try: book_authors = json.loads(prefs.get('favorite_authors') or '[]')
+        except: book_authors = []
+            
+        try: music_artists = json.loads(prefs.get('favorite_artists') or '[]')
+        except: music_artists = []
+
+        try: book_types = json.loads(prefs.get('favorite_book_types') or '[]')
+        except: book_types = []
+        
+        try: music_decades = json.loads(prefs.get('favorite_decades') or '[]')
+        except: music_decades = []
+        
+        try: music_genres = json.loads(prefs.get('favorite_music_genres') or '[]')
+        except: music_genres = []
+            
+        # Dynamically fetch from external API and sync to database if local count is low
+        # 1. Sync Movies
+        if 'movie' in media_types or not media_types or item_type == 'movie':
+            for g in movie_genres:
+                try:
+                    cnt = execute_query("SELECT COUNT(*) as c FROM items WHERE item_type='movie' AND genre LIKE %s", (f"%{g}%",), fetch_one=True)
+                    if not cnt or cnt['c'] < 3:
+                        self._sync_external_items('movie', g)
+                except Exception:
+                    pass
+                    
+        # 2. Sync Books
+        if 'book' in media_types or not media_types or item_type == 'book':
+            for bt in book_types:
+                try:
+                    cnt = execute_query("SELECT COUNT(*) as c FROM items WHERE item_type='book' AND genre LIKE %s", (f"%{bt}%",), fetch_one=True)
+                    if not cnt or cnt['c'] < 3:
+                        self._sync_external_items('book', bt)
+                except Exception:
+                    pass
+            for author in book_authors:
+                try:
+                    cnt = execute_query("SELECT COUNT(*) as c FROM books WHERE author LIKE %s", (f"%{author}%",), fetch_one=True)
+                    if not cnt or cnt['c'] < 3:
+                        self._sync_external_items('book', author)
+                except Exception:
+                    pass
+                    
+        # 3. Sync Music
+        if 'music' in media_types or not media_types or item_type == 'music':
+            for mg in music_genres:
+                try:
+                    cnt = execute_query("SELECT COUNT(*) as c FROM items WHERE item_type='music' AND genre LIKE %s", (f"%{mg}%",), fetch_one=True)
+                    if not cnt or cnt['c'] < 3:
+                        self._sync_external_items('music', mg)
+                except Exception:
+                    pass
+            for artist in music_artists:
+                try:
+                    cnt = execute_query("SELECT COUNT(*) as c FROM music WHERE artist LIKE %s", (f"%{artist}%",), fetch_one=True)
+                    if not cnt or cnt['c'] < 3:
+                        self._sync_external_items('music', artist)
+                except Exception:
+                    pass
+            
+        eth_pref = bool(prefs.get('ethiopian_content_preference', False))
+        
+        query = """SELECT i.*, 
+                   CASE WHEN i.item_type = 'book' THEN b.author
+                        WHEN i.item_type = 'movie' THEN m.director
+                        WHEN i.item_type = 'music' THEN mu.artist END as creator
+                   FROM items i
+                   LEFT JOIN books b ON i.id = b.item_id
+                   LEFT JOIN movies m ON i.id = m.item_id
+                   LEFT JOIN music mu ON i.id = mu.item_id
+                   WHERE 1=1"""
+        
+        params = []
+        
+        # Filter by media type
+        if item_type:
+            query += " AND i.item_type = %s"
+            params.append(item_type)
+        elif media_types:
+            placeholders = ','.join(['%s'] * len(media_types))
+            query += f" AND i.item_type IN ({placeholders})"
+            params.extend(media_types)
+            
+        # PERFECT SEPARATION: Match conditions ONLY for their respective media types
+        
+        media_conditions = []
+        
+        # 1. Movie Conditions
+        if 'movie' in media_types or not media_types or item_type == 'movie':
+            m_conds = []
+            if movie_genres:
+                g_conds = []
+                for g in movie_genres:
+                    g_conds.append("i.genre LIKE %s")
+                    params.append(f"%{g}%")
+                m_conds.append("(" + " OR ".join(g_conds) + ")")
+            if movie_countries:
+                c_conds = []
+                for c in movie_countries:
+                    c_conds.append("m.country LIKE %s")
+                    params.append(f"%{c}%")
+                m_conds.append("(" + " OR ".join(c_conds) + ")")
+                
+            if m_conds:
+                media_conditions.append("(i.item_type = 'movie' AND " + " AND ".join(m_conds) + ")")
+            else:
+                media_conditions.append("(i.item_type = 'movie')")
+                
+        # 2. Book Conditions
+        if 'book' in media_types or not media_types or item_type == 'book':
+            b_conds = []
+            if book_types:
+                t_conds = []
+                for t in book_types:
+                    t_conds.append("i.genre LIKE %s")
+                    params.append(f"%{t}%")
+                b_conds.append("(" + " OR ".join(t_conds) + ")")
+            if book_authors:
+                a_conds = []
+                for a in book_authors:
+                    a_conds.append("b.author LIKE %s")
+                    params.append(f"%{a}%")
+                b_conds.append("(" + " OR ".join(a_conds) + ")")
+                
+            if b_conds:
+                media_conditions.append("(i.item_type = 'book' AND " + " AND ".join(b_conds) + ")")
+            else:
+                media_conditions.append("(i.item_type = 'book')")
+                
+        # 3. Music Conditions
+        if 'music' in media_types or not media_types or item_type == 'music':
+            mu_conds = []
+            # Combine music genres and decades into genre search (since decades are often stored in genre or description)
+            all_mu_genres = music_genres + music_decades
+            if all_mu_genres:
+                mg_conds = []
+                for mg in all_mu_genres:
+                    mg_conds.append("i.genre LIKE %s")
+                    params.append(f"%{mg}%")
+                mu_conds.append("(" + " OR ".join(mg_conds) + ")")
+            if music_artists:
+                ma_conds = []
+                for ma in music_artists:
+                    ma_conds.append("mu.artist LIKE %s")
+                    params.append(f"%{ma}%")
+                mu_conds.append("(" + " OR ".join(ma_conds) + ")")
+                
+            if mu_conds:
+                media_conditions.append("(i.item_type = 'music' AND " + " AND ".join(mu_conds) + ")")
+            else:
+                media_conditions.append("(i.item_type = 'music')")
+                
+        if media_conditions:
+            query += " AND (" + " OR ".join(media_conditions) + ")"
+            
+        # Exclude rated items
+        query += " AND i.id NOT IN (SELECT item_id FROM ratings WHERE user_id = %s)"
+        params.append(user_id)
+        
+        query += " ORDER BY i.popularity_score DESC, i.avg_rating DESC LIMIT %s"
+        params.append(limit * 2) # Fetch extra for boosting
+        
+        items = execute_query(query, tuple(params)) or []
+        
+        if not items:
+            # Fallback if strict filters return nothing
+            return self.cold_start_recommendations(item_type, limit, user_id)
+            
+        # Apply score and Ethiopian boost
+        for r in items:
+            pop = r.get('popularity_score') or 0
+            avg = r.get('avg_rating') or 0
+            r['score'] = (pop + avg * 20) / 120
+            r['explanation'] = "A perfect match for your onboarding preferences"
+            
+            if eth_pref and r.get('is_ethiopian'):
+                r['score'] *= self.ethiopian_boost_factor
+                r['explanation'] += " (Ethiopian Match)"
+                
+        items.sort(key=lambda x: x.get('score', 0), reverse=True)
+        return items[:limit]
     
     def find_similar_items(self, item_id, limit=10):
         """
