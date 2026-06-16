@@ -110,10 +110,13 @@ def get_recommendations():
     limit = min(int(request.args.get('limit', 20)), 50)
     
     # If the user has fewer than 5 ratings, force them into the survey-based recommendation track
-    if ratings_count < 5:
+    requested_algo = request.args.get('algorithm')
+    if requested_algo == 'trend_ai':
+        algorithm = 'trend_ai'
+    elif ratings_count < 5:
         algorithm = 'survey_based'
     else:
-        algorithm = request.args.get('algorithm', 'hybrid')  # collaborative, content, hybrid
+        algorithm = request.args.get('algorithm', 'hybrid')  # collaborative, content, hybrid, trend_ai
     
     # Get user preferences early (used for caching key and for boost)
     preferences = execute_query(
@@ -196,6 +199,8 @@ def get_recommendations():
                     recommendations = run_with_timeout(lambda: engine.cross_domain_recommendations(user_id, limit))
                 elif algorithm == 'survey_based':
                     recommendations = run_with_timeout(lambda: engine.survey_based_recommendations(user_id, item_type, limit))
+                elif algorithm == 'trend_ai':
+                    recommendations = run_with_timeout(lambda: engine.trend_ai_recommendations(user_id, item_type, limit))
                 else:  # hybrid (default)
                     recommendations = run_with_timeout(lambda: engine.hybrid_recommendations(user_id, item_type, limit, ethiopian_boost))
     except Exception as e:

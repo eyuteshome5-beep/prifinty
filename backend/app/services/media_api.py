@@ -27,7 +27,17 @@ class MediaAPIService:
         if not query: return []
         
         if item_type == 'movie':
-            return MediaAPIService._search_tmdb(query)
+            tmdb_results = MediaAPIService._search_tmdb(query) or []
+            youtube_results = MediaAPIService._search_youtube(query) or []
+            
+            seen_ids = set()
+            combined = []
+            for r in tmdb_results + youtube_results:
+                ext_id = r.get('external_id')
+                if ext_id and ext_id not in seen_ids:
+                    seen_ids.add(ext_id)
+                    combined.append(r)
+            return combined
         elif item_type == 'book':
             return MediaAPIService._search_google_books(query)
         elif item_type == 'music':
@@ -115,6 +125,179 @@ class MediaAPIService:
                 return results
         except Exception as e:
             print(f"TVmaze Search Error: {e}")
+        return []
+
+    @staticmethod
+    def _search_youtube(query):
+        import datetime
+        import urllib.parse
+        import re
+        import json
+        
+        debug_log_path = r"C:\Users\user\.gemini\antigravity\scratch\youtube_debug.log"
+        def log_debug(msg):
+            try:
+                with open(debug_log_path, "a", encoding="utf-8") as f:
+                    f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
+            except:
+                pass
+                
+        api_key = MediaAPIService._get_config('YOUTUBE_API_KEY')
+        
+        # Try API first if Key is present and looks valid
+        if api_key and not api_key.startswith('your_') and len(api_key) > 10:
+            masked_key = f"{api_key[:8]}..."
+            log_debug(f"Searching via YouTube API with query: '{query}'. Key: '{masked_key}'")
+            url = "https://www.googleapis.com/youtube/v3/search"
+            params = {
+                "part": "snippet",
+                "q": query,
+                "type": "video",
+                "maxResults": 20,
+                "key": api_key
+            }
+            try:
+                resp = requests.get(url, params=params, timeout=5)
+                log_debug(f"YouTube API response status code: {resp.status_code}")
+                if resp.status_code == 200:
+                    results = []
+                    for item in resp.json().get('items', []):
+                        snippet = item.get('snippet', {})
+                        video_id = item.get('id', {}).get('videoId')
+                        if not video_id: continue
+                        
+                        # Thumbnails
+                        thumbnails = snippet.get('thumbnails', {})
+                        cover = (thumbnails.get('high', {}).get('url') or 
+                                 thumbnails.get('medium', {}).get('url') or 
+                                 thumbnails.get('default', {}).get('url') or '')
+                        
+                        release_year = snippet.get('publishedAt', '')[:4]
+                        
+                        results.append({
+                            'external_id': f"youtube_{video_id}",
+                            'title': snippet.get('title'),
+                            'description': snippet.get('description', 'No description available.'),
+                            'genre': 'Movie',
+                            'item_type': 'movie',
+                            'cover_image': cover,
+                            'release_year': release_year,
+                            'creator': snippet.get('channelTitle', 'Unknown Creator'),
+                            'popularity': 70,
+                            'streaming_links': [
+                                {'provider': 'youtube', 'url': f"https://www.youtube.com/watch?v={video_id}"}
+                            ]
+                        })
+                    log_debug(f"YouTube API successfully returned {len(results)} items.")
+                    return results
+                else:
+                    log_debug(f"YouTube API Error (falling back to scrape): {resp.status_code} - {resp.text}")
+            except Exception as e:
+                log_debug(f"YouTube API Exception (falling back to scrape): {str(e)}")
+        else:
+            log_debug(f"YouTube API key missing or invalid. Key: '{api_key[:8] if api_key else 'None'}'")
+            
+        # Scrape fallback (No API key, or API key failed/quota exceeded)
+        log_debug(f"Searching via YouTube Scraper with query: '{query}'")
+        scrape_url = f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(query)}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9"
+        }
+        try:
+            resp = requests.get(scrape_url, headers=headers, timeout=6)
+            log_debug(f"YouTube Scraper response status code: {resp.status_code}")
+            if resp.status_code == 200:
+                html = resp.text
+                
+                # Match ytInitialData
+                pattern = r'var ytInitialData\s*=\s*({.*?});'
+                match = re.search(pattern, html)
+                if not match:
+                    pattern = r'window\["ytInitialData"\]\s*=\s*({.*?});'
+                    match = re.search(pattern, html)
+                
+                if match:
+                    data = json.loads(match.group(1))
+                    contents = []
+                    try:
+                        section_list = data['contents']['twoColumnSearchResultsRenderer']['primaryContents']['sectionListRenderer']['contents']
+                        for section in section_list:
+                            item_section = section.get('itemSectionRenderer', {})
+                            for item in item_section.get('contents', []):
+                                if 'videoRenderer' in item:
+                                    contents.append(item['videoRenderer'])
+                    except Exception as ex:
+                        log_debug(f"JSON path navigation error: {ex}")
+                    
+                    results = []
+                    for video in contents:
+                        video_id = video.get('videoId')
+                        if not video_id: continue
+                        
+                        # Title
+                        title = ""
+                        try:
+                            title = video['title']['runs'][0]['text']
+                        except:
+                            try: title = video['title']['simpleText']
+                            except: pass
+                        
+                        # Description
+                        desc = "No description available."
+                        try:
+                            desc = "".join([r.get('text', '') for r in video.get('descriptionSnippet', {}).get('runs', [])])
+                        except:
+                            pass
+                        
+                        # Thumbnail
+                        cover = f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+                        
+                        # Channel / Creator
+                        creator = "Unknown Creator"
+                        try:
+                            creator = video['ownerText']['runs'][0]['text']
+                        except:
+                            try: creator = video['shortBylineText']['runs'][0]['text']
+                            except: pass
+                            
+                        # Release Year
+                        release_year = ""
+                        try:
+                            time_text = video['publishedTimeText']['simpleText']
+                            current_year = datetime.datetime.now().year
+                            match_year = re.search(r'(\d+)\s+year', time_text)
+                            if match_year:
+                                release_year = str(current_year - int(match_year.group(1)))
+                            else:
+                                if "month" in time_text or "week" in time_text or "day" in time_text or "hour" in time_text:
+                                    release_year = str(current_year)
+                        except:
+                            pass
+                        
+                        results.append({
+                            'external_id': f"youtube_{video_id}",
+                            'title': title,
+                            'description': desc,
+                            'genre': 'Movie',
+                            'item_type': 'movie',
+                            'cover_image': cover,
+                            'release_year': release_year,
+                            'creator': creator,
+                            'popularity': 75,
+                            'streaming_links': [
+                                {'provider': 'youtube', 'url': f"https://www.youtube.com/watch?v={video_id}"}
+                            ]
+                        })
+                    log_debug(f"YouTube Scraper successfully parsed {len(results)} items.")
+                    return results
+                else:
+                    log_debug("Could not find ytInitialData in YouTube response HTML.")
+            else:
+                log_debug(f"YouTube Scraper HTTP Error: {resp.status_code}")
+        except Exception as e:
+            log_debug(f"YouTube Scraper Exception: {str(e)}")
+            
         return []
 
     @staticmethod

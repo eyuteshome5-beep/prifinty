@@ -35,6 +35,7 @@ def init_db():
                 ('TMDB_API_KEY', '', 'api_keys', 'The Movie Database API Key (v3)'),
                 ('LASTFM_API_KEY', '', 'api_keys', 'Last.fm API Key'),
                 ('GOOGLE_BOOKS_API_KEY', '', 'api_keys', 'Google Books API Key'),
+                ('YOUTUBE_API_KEY', '', 'api_keys', 'YouTube Data API v3 Key'),
                 ('SITE_NAME', 'Prefinity AI', 'general', 'Display name of the platform'),
                 ('SITE_DESCRIPTION', 'Advanced Ethiopian Recommendation Engine', 'general', 'Meta description for SEO')
             ]

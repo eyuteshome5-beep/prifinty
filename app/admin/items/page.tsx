@@ -19,7 +19,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Search, Plus, MoreHorizontal, Star, Edit, Trash2, Film, Music, BookOpen, Loader2, Globe, Activity, ExternalLink, Copy, X
+  Search, Plus, MoreHorizontal, Star, Edit, Trash2, Film, Music, BookOpen, Loader2, Globe, Activity, ExternalLink, Copy, X, Sparkles
 } from "lucide-react";
 import { adminApi, discoveryAPI, itemsAPI, Item, NewItemData } from "@/lib/api";
 
@@ -60,7 +60,22 @@ export default function AdminItemsPage() {
   const [formData, setFormData] = useState<any>(emptyForm());
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [fixingImages, setFixingImages] = useState(false);
   const [importSearchOpen, setImportSearchOpen] = useState(false);
+
+  const handleFixMissingImages = async () => {
+    setFixingImages(true);
+    try {
+      const response = await adminApi.fetchMissingImages(100);
+      alert(`Scanned and updated images for ${response.count} items!`);
+      await fetchItems();
+    } catch (error: any) {
+      console.error("Failed to fix missing images:", error);
+      alert(error.message || "Failed to fetch missing images.");
+    } finally {
+      setFixingImages(false);
+    }
+  };
   const [importQuery, setImportQuery] = useState("");
   const [importType, setImportType] = useState<ItemType>("movie");
   const [importResults, setImportResults] = useState<any[]>([]);
@@ -303,6 +318,10 @@ export default function AdminItemsPage() {
           <p className="text-muted-foreground">Manage movies, music, and books in the catalog</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" className="border-amber-500/50 text-amber-500 hover:bg-amber-500/10" onClick={handleFixMissingImages} disabled={fixingImages}>
+            {fixingImages ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+            Fix Missing Images
+          </Button>
           <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10" onClick={() => setImportSearchOpen(true)}>
             <Globe className="h-4 w-4 mr-2" />
             Import from Web

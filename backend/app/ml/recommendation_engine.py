@@ -695,6 +695,161 @@ class RecommendationEngine:
         items.sort(key=lambda x: x.get('score', 0), reverse=True)
         return items[:limit]
     
+    def trend_ai_recommendations(self, user_id, item_type=None, limit=20):
+        """
+        AI Trend recommendations: returns trending items that are NOT related
+        to the user's preferred onboarding genres/authors/artists.
+        """
+        import json
+        
+        # Get complex preferences
+        prefs = execute_query("SELECT * FROM preferences WHERE user_id = %s", (user_id,), fetch_one=True)
+        if not prefs:
+            return self.cold_start_recommendations(item_type, limit, user_id)
+            
+        try: movie_genres = json.loads(prefs.get('preferred_genres') or '[]')
+        except: movie_genres = []
+            
+        try: media_types = json.loads(prefs.get('favorite_media_types') or '[]')
+        except: media_types = []
+            
+        try: movie_countries = json.loads(prefs.get('favorite_countries') or '[]')
+        except: movie_countries = []
+            
+        try: book_authors = json.loads(prefs.get('favorite_authors') or '[]')
+        except: book_authors = []
+            
+        try: music_artists = json.loads(prefs.get('favorite_artists') or '[]')
+        except: music_artists = []
+
+        try: book_types = json.loads(prefs.get('favorite_book_types') or '[]')
+        except: book_types = []
+        
+        try: music_decades = json.loads(prefs.get('favorite_decades') or '[]')
+        except: music_decades = []
+        
+        try: music_genres = json.loads(prefs.get('favorite_music_genres') or '[]')
+        except: music_genres = []
+            
+        eth_pref = bool(prefs.get('ethiopian_content_preference', False))
+        
+        query = """SELECT i.*, 
+                   CASE WHEN i.item_type = 'book' THEN b.author
+                        WHEN i.item_type = 'movie' THEN m.director
+                        WHEN i.item_type = 'music' THEN mu.artist END as creator
+                   FROM items i
+                   LEFT JOIN books b ON i.id = b.item_id
+                   LEFT JOIN movies m ON i.id = m.item_id
+                   LEFT JOIN music mu ON i.id = mu.item_id
+                   WHERE 1=1"""
+        
+        params = []
+        
+        # Filter by media type
+        if item_type:
+            query += " AND i.item_type = %s"
+            params.append(item_type)
+        elif media_types:
+            placeholders = ','.join(['%s'] * len(media_types))
+            query += f" AND i.item_type IN ({placeholders})"
+            params.extend(media_types)
+            
+        media_conditions = []
+        
+        # 1. Movie Conditions
+        if 'movie' in media_types or not media_types or item_type == 'movie':
+            m_conds = []
+            if movie_genres:
+                g_conds = []
+                for g in movie_genres:
+                    g_conds.append("i.genre NOT LIKE %s")
+                    params.append(f"%{g}%")
+                m_conds.append("(" + " AND ".join(g_conds) + ")")
+            if movie_countries:
+                c_conds = []
+                for c in movie_countries:
+                    c_conds.append("m.country NOT LIKE %s")
+                    params.append(f"%{c}%")
+                m_conds.append("(" + " AND ".join(c_conds) + ")")
+                
+            if m_conds:
+                media_conditions.append("(i.item_type = 'movie' AND " + " AND ".join(m_conds) + ")")
+            else:
+                media_conditions.append("(i.item_type = 'movie')")
+                
+        # 2. Book Conditions
+        if 'book' in media_types or not media_types or item_type == 'book':
+            b_conds = []
+            if book_types:
+                t_conds = []
+                for t in book_types:
+                    t_conds.append("i.genre NOT LIKE %s")
+                    params.append(f"%{t}%")
+                b_conds.append("(" + " AND ".join(t_conds) + ")")
+            if book_authors:
+                a_conds = []
+                for a in book_authors:
+                    a_conds.append("b.author NOT LIKE %s")
+                    params.append(f"%{a}%")
+                b_conds.append("(" + " AND ".join(a_conds) + ")")
+                
+            if b_conds:
+                media_conditions.append("(i.item_type = 'book' AND " + " AND ".join(b_conds) + ")")
+            else:
+                media_conditions.append("(i.item_type = 'book')")
+                
+        # 3. Music Conditions
+        if 'music' in media_types or not media_types or item_type == 'music':
+            mu_conds = []
+            all_mu_genres = music_genres + music_decades
+            if all_mu_genres:
+                mg_conds = []
+                for mg in all_mu_genres:
+                    mg_conds.append("i.genre NOT LIKE %s")
+                    params.append(f"%{mg}%")
+                mu_conds.append("(" + " AND ".join(mg_conds) + ")")
+            if music_artists:
+                ma_conds = []
+                for ma in music_artists:
+                    ma_conds.append("mu.artist NOT LIKE %s")
+                    params.append(f"%{ma}%")
+                mu_conds.append("(" + " AND ".join(ma_conds) + ")")
+                
+            if mu_conds:
+                media_conditions.append("(i.item_type = 'music' AND " + " AND ".join(mu_conds) + ")")
+            else:
+                media_conditions.append("(i.item_type = 'music')")
+                
+        if media_conditions:
+            query += " AND (" + " OR ".join(media_conditions) + ")"
+            
+        # Exclude rated items
+        query += " AND i.id NOT IN (SELECT item_id FROM ratings WHERE user_id = %s)"
+        params.append(user_id)
+        
+        query += " ORDER BY i.popularity_score DESC, i.avg_rating DESC LIMIT %s"
+        params.append(limit * 2) # Fetch extra for boosting
+        
+        items = execute_query(query, tuple(params)) or []
+        
+        if not items:
+            return self.cold_start_recommendations(item_type, limit, user_id)
+            
+        # Apply score and Ethiopian boost
+        for r in items:
+            pop = r.get('popularity_score') or 0
+            avg = r.get('avg_rating') or 0
+            r['score'] = (pop + avg * 20) / 120
+            r['explanation'] = "Trending AI recommendation (discover something new outside preferences)"
+            
+            if eth_pref and r.get('is_ethiopian'):
+                r['score'] *= self.ethiopian_boost_factor
+                r['explanation'] += " (Ethiopian Match)"
+                
+        items.sort(key=lambda x: x.get('score', 0), reverse=True)
+        return items[:limit]
+
+    
     def find_similar_items(self, item_id, limit=10):
         """
         Find items similar to a specific item using content similarity

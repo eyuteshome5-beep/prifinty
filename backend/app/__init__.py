@@ -19,6 +19,14 @@ def create_app(config_name='default'):
     from app.utils.database import Database
     Database.init_pool(app)
     
+    # Auto-seed/update sample items and cover images
+    with app.app_context():
+        try:
+            from app.utils.seed import run_seed_items
+            run_seed_items()
+        except Exception as e:
+            app.logger.error(f"Failed to auto-seed database: {e}")
+    
     # Audit Environment Secrets
     from app.utils.vault import SecretVault
     SecretVault.audit_environment(app)

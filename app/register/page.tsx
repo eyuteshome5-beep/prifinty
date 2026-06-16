@@ -150,7 +150,7 @@ export default function RegisterPage() {
           <CardHeader className="text-center shrink-0">
             <CardTitle className="text-2xl">{step === 1 ? t('auth.create_account') : 'Personalize Your Experience'}</CardTitle>
             <CardDescription>
-              {step === 1 ? t('auth.register_desc') : 'Help us give you the perfect recommendations.'}
+              {step === 1 ? t('auth.register_desc') : 'Define your profile. Standard modes match these tastes; choosing Trend AI will recommend new things outside your preferences!'}
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-y-auto flex-1 custom-scrollbar pb-6">

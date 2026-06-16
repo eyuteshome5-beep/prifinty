@@ -252,7 +252,7 @@ export const recommendationsAPI = {
   getRecommendations: (params?: {
     type?: string;
     limit?: number;
-    algorithm?: 'collaborative' | 'content' | 'hybrid' | 'cross_domain';
+    algorithm?: 'collaborative' | 'content' | 'hybrid' | 'cross_domain' | 'survey_based' | 'trend_ai';
   }) => {
     const searchParams = new URLSearchParams();
     if (params) {
@@ -355,6 +355,11 @@ export const adminAPI = {
       ratings: AdminRatingStats;
       recent_users: User[];
     }>('/admin/stats'),
+
+  fetchMissingImages: (limit?: number) =>
+    apiRequest<{ updated: any[]; count: number }>(`/admin/fetch-missing-images${limit ? `?limit=${limit}` : ''}`, {
+      method: 'POST',
+    }),
 
   searchExternal: (itemType: string, query: string) =>
     apiRequest<{ results: any[] }>(`/admin/import/search?type=${itemType}&q=${query}`),

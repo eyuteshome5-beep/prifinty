@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/language-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { 
   Film, 
@@ -45,6 +46,7 @@ export default function DashboardPage() {
   const [ratingsNeeded, setRatingsNeeded] = useState(false);
   const [popularItems, setPopularItems] = useState<any[]>([]);
   const [popularLoading, setPopularLoading] = useState(false);
+  const [selectedAlgo, setSelectedAlgo] = useState<'collaborative' | 'content' | 'hybrid' | 'cross_domain' | 'survey_based' | 'trend_ai'>('hybrid');
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -80,7 +82,7 @@ export default function DashboardPage() {
     setIsLoading(true);
     try {
       const promises = [
-        recommendationsAPI.getRecommendations({ limit: 8, algorithm: 'hybrid' }),
+        recommendationsAPI.getRecommendations({ limit: 8, algorithm: selectedAlgo }),
         discoveryAPI.getTrending('movie'),
         wishlistAPI.getWishlist(),
         usersAPI.getProfile(),
@@ -148,7 +150,7 @@ export default function DashboardPage() {
     }
   };
 
-  const refreshRecommendations = async (type?: string) => {
+  const refreshRecommendations = async (type?: string, algo?: 'collaborative' | 'content' | 'hybrid' | 'cross_domain' | 'survey_based' | 'trend_ai') => {
     if (!user || (user.role !== 'admin' && user.credits < 1)) {
       toast.error('Insufficient credits', {
         description: 'You need at least 1 credit to get recommendations.',
@@ -158,12 +160,13 @@ export default function DashboardPage() {
 
     setIsRefreshing(true);
     setActiveType(type);
+    const algoToUse = algo || selectedAlgo;
     
     try {
       const data = await recommendationsAPI.getRecommendations({
         type,
         limit: 8,
-        algorithm: 'hybrid',
+        algorithm: algoToUse,
       });
 
       setRecommendations(data.recommendations || []);
@@ -481,18 +484,43 @@ export default function DashboardPage() {
               </p>
             </div>
             
-            <Button 
-              onClick={() => refreshRecommendations(activeType)}
-              disabled={isRefreshing || (user?.role !== 'admin' && (user?.credits || 0) < 1)}
-              className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)] transition-all font-black text-xs uppercase px-4"
-            >
-              {isRefreshing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4 text-white" />
-              )}
-              {t('dashboard.refresh')}
-            </Button>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Algorithm:</span>
+                <Select
+                  value={selectedAlgo}
+                  onValueChange={(val: any) => {
+                    setSelectedAlgo(val);
+                    refreshRecommendations(activeType, val);
+                  }}
+                  disabled={isRefreshing}
+                >
+                  <SelectTrigger className="w-[180px] bg-white/5 border-white/10 rounded-xl text-xs font-bold text-white">
+                    <SelectValue placeholder="Select Algorithm" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#121214] border-white/10 text-white rounded-xl">
+                    <SelectItem value="hybrid" className="text-xs font-medium hover:bg-white/5">Hybrid (Recommended)</SelectItem>
+                    <SelectItem value="collaborative" className="text-xs font-medium hover:bg-white/5">Collaborative Filtering</SelectItem>
+                    <SelectItem value="content" className="text-xs font-medium hover:bg-white/5">Content-Based</SelectItem>
+                    <SelectItem value="survey_based" className="text-xs font-medium hover:bg-white/5">Survey-Based (Matches Prefs)</SelectItem>
+                    <SelectItem value="trend_ai" className="text-xs font-bold text-violet-400 hover:bg-white/5">🔥 Trend AI (Discover New)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button 
+                onClick={() => refreshRecommendations(activeType, selectedAlgo)}
+                disabled={isRefreshing || (user?.role !== 'admin' && (user?.credits || 0) < 1)}
+                className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)] transition-all font-black text-xs uppercase px-4"
+              >
+                {isRefreshing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4 text-white" />
+                )}
+                {t('dashboard.refresh')}
+              </Button>
+            </div>
           </div>
 
           <div className="p-6 md:p-8">

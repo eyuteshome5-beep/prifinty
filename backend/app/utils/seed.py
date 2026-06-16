@@ -9,6 +9,29 @@ from flask import current_app
 from app.utils.database import execute_query
 
 
+CURATED_COVERS = {
+    # Movies
+    "Min Alesh?": "https://m.media-amazon.com/images/M/MV5BZGY5OWU1YzAtNWRjOC00NzZmLTgwNmItMDcyMGM0Yzk2NjJmXkEyXkFqcGdeQXVyMTAwMDI3MTc3._V1_FMjpg_UX1000_.jpg",
+    "Sost Maezen": "https://m.media-amazon.com/images/M/MV5BMTQ4NzA2NDM0MF5BMl5BanBnXkFtZTcwNTI3NDU5OQ@@._V1_FMjpg_UX1000_.jpg",
+    "Lamb": "https://m.media-amazon.com/images/M/MV5BNGQ0MWNjZjMtYjgxMC00NTA1LTk5MGYtOTUzMmFlNWE5YTUzXkEyXkFqcGdeQXVyMjA0MzYwMDY@._V1_FMjpg_UX1000_.jpg",
+    "Teza": "https://m.media-amazon.com/images/M/MV5BMTM3MTQ0NzU3N15BMl5BanBnXkFtZTcwMzg5ODg5Mg@@._V1_FMjpg_UX1000_.jpg",
+    "Difret": "https://m.media-amazon.com/images/M/MV5BMTY3NTYwMjk3Nl5BMl5BanBnXkFtZTgwNjkyMjQzMjE@._V1_FMjpg_UX1000_.jpg",
+    "Atletu (The Athlete)": "https://m.media-amazon.com/images/M/MV5BMTQwMDMwNzk3M15BMl5BanBnXkFtZTcwNzU2MjcyNA@@._V1_FMjpg_UX1000_.jpg",
+    
+    # Music
+    "Guramayle": "https://m.media-amazon.com/images/I/51HkE6X3ZqL._SS500_.jpg",
+    "Tizita (Abebe)": "https://m.media-amazon.com/images/I/51H-k-z1aOL._SS500_.jpg",
+    "Ethiopia": "https://i.ytimg.com/vi/K7kXlhvcfbE/maxresdefault.jpg",
+    
+    # Books
+    "Dertogada": "https://books.google.com/books/content?id=V2NFEAAAQBAJ&printsec=frontcover&img=1&zoom=1",
+    "Sememen": "https://books.google.com/books/content?id=O2NFEAAAQBAJ&printsec=frontcover&img=1&zoom=1",
+    "Fikir Eske Mekaber": "https://books.google.com/books/content?id=O2NFEAAAQBAJ&printsec=frontcover&img=1&zoom=1",
+    "The Beautiful Things That Heaven Bears": "https://books.google.com/books/content?id=qY94DwAAQBAJ&printsec=frontcover&img=1&zoom=1",
+    "Beneath the Lion's Gaze": "https://books.google.com/books/content?id=a613AwAAQBAJ&printsec=frontcover&img=1&zoom=1",
+    "Cutting for Stone": "https://books.google.com/books/content?id=y9PqDAAAQBAJ&printsec=frontcover&img=1&zoom=1"
+}
+
 def run_seed_items():
     """Insert seed items if they do not already exist.
 
@@ -41,15 +64,35 @@ def run_seed_items():
 
     for title, desc, genre, i_type, is_eth, pop in items:
         try:
-            existing = execute_query("SELECT id FROM items WHERE title = %s", (title,), fetch_one=True)
+            # 1. Determine cover image URL
+            cover = CURATED_COVERS.get(title, '')
+            if not cover:
+                try:
+                    from app.services.media_api import MediaAPIService
+                    candidates = MediaAPIService.search(i_type, title)
+                    if candidates:
+                        cover = candidates[0].get('cover_image') or ''
+                except Exception as e:
+                    current_app.logger.warning(f"Seed: failed to fetch cover dynamically for {title}: {e}")
+
+            existing = execute_query("SELECT id, cover_image FROM items WHERE title = %s", (title,), fetch_one=True)
             if existing:
-                current_app.logger.info(f"Seed: Skipping existing item: {title}")
+                # If cover_image is empty/missing, update it in the database
+                if (not existing.get('cover_image') or existing.get('cover_image') == '') and cover:
+                    execute_query(
+                        "UPDATE items SET cover_image = %s WHERE id = %s",
+                        (cover, existing['id']),
+                        fetch_all=False
+                    )
+                    current_app.logger.info(f"Seed: Updated cover image for existing item: {title}")
+                else:
+                    current_app.logger.info(f"Seed: Skipping existing item: {title}")
                 continue
 
             item_id = execute_query(
                 """INSERT INTO items (title, description, genre, item_type, cover_image, is_ethiopian, popularity_score)
                    VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-                (title, desc, genre, i_type, '', bool(is_eth), pop),
+                (title, desc, genre, i_type, cover, bool(is_eth), pop),
                 fetch_all=False
             )
 
@@ -119,3 +162,4 @@ def run_seed_items():
 
     current_app.logger.info(f"Seed completed. Inserted: {inserted}")
     return inserted
+
