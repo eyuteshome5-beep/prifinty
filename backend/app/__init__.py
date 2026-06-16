@@ -32,9 +32,22 @@ def create_app(config_name='default'):
     SecretVault.audit_environment(app)
     
     # Enable CORS with HTTP-only cookie support (supports_credentials=True)
+    import os
+    origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://prifintyy.vercel.app",
+        "https://prifinity-alpha.vercel.app"
+    ]
+    frontend_url = os.environ.get('FRONTEND_URL')
+    if frontend_url:
+        origins.append(frontend_url)
+        if frontend_url.endswith('/'):
+            origins.append(frontend_url[:-1])
+
     CORS(app, resources={
         r"/api/*": {
-            "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+            "origins": origins,
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True

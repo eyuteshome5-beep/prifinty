@@ -23,7 +23,7 @@ services:
       - key: MYSQL_DB
         sync: false
       - key: MYSQL_PORT
-        value: "52515"
+        value: "55553"
       - key: FRONTEND_URL
         sync: false
       - key: ENABLE_REMOTE_SEED
