@@ -34,7 +34,7 @@ async function apiRequest<T>(
   
   // If the URL is missing, invalid (relative), or the default 'undefined'
   if (!baseUrl || !baseUrl.startsWith('http')) {
-    baseUrl = 'https://prefinity-api.onrender.com/api';
+    baseUrl = 'https://prifinity-api.onrender.com/api';
   }
 
   // Ensure endpoint starts with /
