@@ -16,9 +16,9 @@ if not exist .git (
 )
 
 :: Set remote URL
-echo [2/4] Setting remote URL to: https://github.com/eyuteshome5-beep/prifinty.git
+echo [2/4] Setting remote URL to: https://eyuteshome5-beep@github.com/eyuteshome5-beep/prifinty.git
 git remote remove origin 2>nul
-git remote add origin https://github.com/eyuteshome5-beep/prifinty.git
+git remote add origin https://eyuteshome5-beep@github.com/eyuteshome5-beep/prifinty.git
 
 :: Add and commit
 echo [3/4] Staging and committing files...
