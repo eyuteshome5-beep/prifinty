@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: prifinity-api
+    env: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: MYSQL_HOST
+        sync: false
+      - key: MYSQL_USER
+        sync: false
+      - key: MYSQL_PASSWORD
+        sync: false
+      - key: MYSQL_DB
+        sync: false
+      - key: MYSQL_PORT
+        value: "3306"
+      - key: FRONTEND_URL
+        sync: false
+      - key: ENABLE_REMOTE_SEED
+        value: "true"
+      - key: SEED_TOKEN
+        generateValue: true
