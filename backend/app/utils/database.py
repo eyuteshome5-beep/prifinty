@@ -45,9 +45,76 @@ class Database:
                 autocommit=True
             )
             print(f"[MySQL] Connection pool initialized (DB: {database}, Size: {pool_size})")
+            
+            # Automatically run database schema setup if empty
+            cls.run_schema_setup()
+            
         except Exception as e:
             print(f"[MySQL] Connection pool initialization error: {e}")
             cls._pool = None
+
+    @classmethod
+    def run_schema_setup(cls):
+        """Executes database_setup.sql if the database is empty"""
+        try:
+            # Check if users table exists
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SHOW TABLES LIKE 'users'")
+            table_exists = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if table_exists:
+                print("[MySQL] Tables already exist. Skipping schema setup.")
+                return
+                
+            print("[MySQL] Tables not found. Initializing schema...")
+            
+            import os
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            sql_path = os.path.join(base_dir, 'database', 'database_setup.sql')
+            
+            if not os.path.exists(sql_path):
+                print(f"[MySQL] SQL file not found at {sql_path}")
+                return
+                
+            with open(sql_path, 'r', encoding='utf-8') as f:
+                sql_content = f.read()
+                
+            statements = []
+            current_statement = []
+            
+            for line in sql_content.split('\n'):
+                cleaned_line = line.strip()
+                if not cleaned_line or cleaned_line.startswith('--') or cleaned_line.startswith('#') or cleaned_line.startswith('/*'):
+                    continue
+                
+                current_statement.append(line)
+                
+                if cleaned_line.endswith(';'):
+                    statement_str = '\n'.join(current_statement).strip()
+                    if statement_str:
+                        statements.append(statement_str)
+                    current_statement = []
+                    
+            conn = cls.get_connection()
+            cursor = conn.cursor()
+            for statement in statements:
+                statement_lower = statement.lower().strip()
+                if statement_lower.startswith('create database') or statement_lower.startswith('use '):
+                    continue
+                try:
+                    cursor.execute(statement)
+                except Exception as e:
+                    print(f"[MySQL] Error executing statement:\n{statement}\nError: {e}")
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            print("[MySQL] Database schema initialized successfully.")
+        except Exception as e:
+            print(f"[MySQL] Schema setup error: {e}")
 
     @classmethod
     def get_connection(cls):
